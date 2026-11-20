@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArtworkImage } from "@/components/ArtworkImage";
 import { GameChangerBadge } from "@/components/GameChangerBadge";
+import { CardPreview } from "@/features/deckbuilder/CardPreview";
 import { TestHand } from "@/features/deckbuilder/TestHand";
 import { DecklistModal } from "@/components/DecklistModal";
 import { PrintPicker } from "@/components/PrintPicker";
@@ -13,11 +14,10 @@ import { useChoosePrint } from "@/hooks/useChoosePrint";
 import { useArtworkSrc } from "@/hooks/useArtwork";
 import { useCardTypes, typeCacheKey } from "@/hooks/useCardTypes";
 import { prettyManaCost } from "@/lib/scryart";
-import { fetchCommanderIdentity } from "@/services/cardfinder";
-import { CATEGORY_LABELS, CATEGORY_ORDER, categoryOf, type CardCategory } from "@/lib/cardtype";
+import { fetchCommanderIdentity, type CardMeta } from "@/services/cardfinder";
 import { edhrecCardUrl, edhrecCommanderUrl } from "@/lib/edhrec";
 import { openExternal } from "@/lib/external";
-import { ZONE_ORDER } from "@/features/print/printModel";
+import { ZONE_ORDER, deckMacroZone, DECK_MACRO_ORDER, DECK_MACRO_LABELS } from "@/features/print/printModel";
 import { isCommander, totalCopies, useDeck } from "@/stores/deck";
 import { useProjects } from "@/stores/projects";
 import { useUi } from "@/stores/ui";
@@ -41,15 +41,28 @@ export function DeckBuilderView(): JSX.Element {
     useChoosePrint();
   const [showDecklist, setShowDecklist] = useState(false);
   const [query, setQuery] = useState("");
-  const [zoneFilter, setZoneFilter] = useState<Zone | "all">("all");
   const [sort, setSort] = useState<SortKey>("order");
   const [view, setView] = useState<"grid" | "list" | "text">("grid");
-  const [group, setGroup] = useState<"zone" | "type">("type");
+  /** vista principale: solo mazzo (default) oppure ricerca/consigliati a sé */
+  const [mode, setMode] = useState<"deck" | "search">("deck");
+  /** carta mostrata nell'anteprima grande (hover); resta sull'ultima vista */
+  const [previewId, setPreviewId] = useState<string | null>(null);
   /** type_line Scryfall per voce (ID → nome+set → esatto → fuzzy, cache persistente) */
   const typeInfo = useCardTypes(
     deck.map((c) => ({ name: c.name, provider: c.provider, providerId: c.providerId, setCode: c.setCode })),
   );
-  /** meta (tipo + costo + segnali bracket) di una voce: chiave esatta, poi alias per nome. */
+  /** Meta completo (con prezzo) di una voce: chiave esatta, poi alias per nome. */
+  const rawMetaOf = (c: CardEntry): CardMeta | undefined => {
+    const ref = { name: c.name, provider: c.provider, providerId: c.providerId, setCode: c.setCode };
+    const lower = c.name.trim().toLowerCase();
+    const set = (c.setCode ?? "").toLowerCase();
+    return (
+      typeInfo.meta.get(typeCacheKey(ref)) ??
+      typeInfo.meta.get(`n:${lower}|`) ??
+      typeInfo.meta.get(`n:${lower}|${set}`)
+    );
+  };
+  /** meta (tipo + costo + segnali bracket) di una voce. */
   const metaOf = (c: CardEntry): {
     type?: string;
     mana?: string;
@@ -57,13 +70,7 @@ export function DeckBuilderView(): JSX.Element {
     extraTurn?: boolean;
     massLandDenial?: boolean;
   } => {
-    const ref = { name: c.name, provider: c.provider, providerId: c.providerId, setCode: c.setCode };
-    const lower = c.name.trim().toLowerCase();
-    const set = (c.setCode ?? "").toLowerCase();
-    const m =
-      typeInfo.meta.get(typeCacheKey(ref)) ??
-      typeInfo.meta.get(`n:${lower}|`) ??
-      typeInfo.meta.get(`n:${lower}|${set}`);
+    const m = rawMetaOf(c);
     return {
       type: m?.typeLine,
       mana: m?.manaCost,
@@ -72,8 +79,6 @@ export function DeckBuilderView(): JSX.Element {
       massLandDenial: m?.massLandDenial === true,
     };
   };
-  /** type_line di una voce per il raggruppamento per tipo. */
-  const typeOf = (c: CardEntry): string | undefined => metaOf(c).type;
   /** menu contestuale (tasto destro su carta): {id, x, y} o null */
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   /** zoom carta ingrandita (id voce o null) */
@@ -97,6 +102,13 @@ export function DeckBuilderView(): JSX.Element {
 
   const copies = totalCopies(deck);
   const commander = useMemo(() => deck.find((c) => isCommander(c)) ?? null, [deck]);
+  /** carta dell'anteprima: ultima passata col mouse, altrimenti comandante/prima carta */
+  const previewEntry = useMemo(
+    () => (previewId ? deck.find((c) => c.id === previewId) : undefined) ?? commander ?? deck[0] ?? null,
+    [deck, previewId, commander],
+  );
+  const previewMeta = previewEntry ? rawMetaOf(previewEntry) : undefined;
+  const previewZone = previewEntry ? ZONE_LABELS[previewEntry.zone] : undefined;
   /** identità di colore del comandante (pill header; cache condivisa coi Consigliati) */
   const cmdIdentity = useQuery({
     queryKey: ["commander-identity", commander?.name ?? ""],
@@ -122,37 +134,23 @@ export function DeckBuilderView(): JSX.Element {
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let out = deck.filter(
-      (c) =>
-        (zoneFilter === "all" || c.zone === zoneFilter) &&
-        (q === "" || c.name.toLowerCase().includes(q)),
-    );
-    out = [...out];
+    const out = deck.filter((c) => q === "" || c.name.toLowerCase().includes(q));
     if (sort === "name") out.sort((a, b) => a.name.localeCompare(b.name));
     else if (sort === "qty") out.sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name));
     else out.sort((a, b) => a.sortOrder - b.sortOrder);
     return out;
-  }, [deck, query, zoneFilter, sort]);
+  }, [deck, query, sort]);
 
-  /** Sezioni per categoria di carta (Terre, Creature, …) sulle carte visibili.
-   * Comandante, Maybeboard e Token restano gruppi a parte (non sparpagliati
-   * per tipo): Comandante per primo, Maybeboard e Token in fondo. */
-  const typeSections = useMemo(() => {
-    const commanders = visible.filter((c) => isCommander(c));
-    const maybe = visible.filter((c) => !isCommander(c) && c.zone === "maybe");
-    const tokens = visible.filter((c) => !isCommander(c) && c.zone === "tokens");
-    const rest = visible.filter((c) => !isCommander(c) && c.zone !== "maybe" && c.zone !== "tokens");
-    return {
-      commanders,
-      maybe,
-      tokens,
-      byType: CATEGORY_ORDER.map((cat) => ({
-        cat,
-        cards: rest.filter((c) => categoryOf(typeOf(c)) === cat),
+  /** Sezioni SEMPRE per macro-zona, in ordine di gioco (niente vista mista). */
+  const macroSections = useMemo(
+    () =>
+      DECK_MACRO_ORDER.map((zone) => ({
+        zone,
+        label: DECK_MACRO_LABELS[zone],
+        cards: visible.filter((c) => deckMacroZone(c.zone) === zone),
       })).filter((s) => s.cards.length > 0),
-    };
-    // typeOf() legge typeInfo.types dal render corrente: dipendenza dati sotto
-  }, [visible, typeInfo.types]);
+    [visible],
+  );
 
   if (deck.length === 0) {
     return (
@@ -201,6 +199,26 @@ export function DeckBuilderView(): JSX.Element {
           />
         )}
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div className="flex gap-0.5 rounded-[9px] panel-2 p-[3px]" role="group" aria-label="Vista DeckBuilder">
+            {(
+              [
+                ["deck", "Mazzo"],
+                ["search", "Cerca"],
+              ] as const
+            ).map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setMode(v)}
+                aria-pressed={mode === v}
+                data-testid={`db-mode-${v}`}
+                title={v === "deck" ? "Solo il mazzo" : "Cerca carte, consigliati EDHREC, sintassi"}
+                className={`rounded-[7px] px-3 py-[7px] text-xs font-medium ${mode === v ? "bg-neutral-200 font-semibold text-black" : "text-neutral-400"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             onClick={() => setHandOpen(true)}
@@ -242,22 +260,15 @@ export function DeckBuilderView(): JSX.Element {
         </div>
       </div>
 
-      {/* corpo: lista a sinistra, ricerca/consigliati a destra */}
-      <div className="flex min-h-0 flex-1">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <DeckStats deck={deck} />
-      {/* barra filtri stile mockup: pill zone, ricerca, icone vista */}
-      <div className="flex flex-wrap items-center gap-2.5 border-b thin-border px-5 py-3">
-        <div className="flex gap-0.5 rounded-[9px] panel-2 p-[3px]" role="group" aria-label="Filtra per zona">
-          <ZoneChip active={zoneFilter === "all"} onClick={() => setZoneFilter("all")}>
-            Tutte
-          </ZoneChip>
-          {zonesPresent.map(({ zone, label }) => (
-            <ZoneChip key={zone} active={zoneFilter === zone} onClick={() => setZoneFilter(zone)}>
-              {label}
-            </ZoneChip>
-          ))}
+      {mode === "search" ? (
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <SearchPanel standalone />
         </div>
+      ) : (
+        <div className="flex min-h-0 flex-1">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      {/* barra filtri: ricerca, ordine, vista (le zone sono sempre fisse) */}
+      <div className="flex flex-wrap items-center gap-2.5 border-b thin-border px-5 py-3">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -266,22 +277,10 @@ export function DeckBuilderView(): JSX.Element {
           data-testid="db-search"
           className="min-w-44 rounded-lg thin-border panel-2 px-3 py-2 text-xs placeholder:text-neutral-600 focus:outline-none"
         />
+        <span className="text-[11px] text-neutral-400" aria-live="polite" data-testid="db-count">
+          {visible.length} {visible.length === 1 ? "voce" : "voci"}
+        </span>
         <div className="ml-auto flex items-center gap-2">
-          <div className="flex gap-0.5 rounded-[9px] panel-2 p-[3px]" role="group" aria-label="Raggruppa carte">
-            {(["zone", "type"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setGroup(v)}
-                aria-pressed={group === v}
-                data-testid={`db-group-${v}`}
-                title={v === "zone" ? "Raggruppa per zona" : "Raggruppa per tipo di carta"}
-                className={`rounded-[7px] px-3 py-[7px] text-xs font-medium ${group === v ? "bg-neutral-200 font-semibold text-black" : "text-neutral-400"}`}
-              >
-                {v === "zone" ? "Zone" : "Tipo"}
-              </button>
-            ))}
-          </div>
           <label className="flex items-center gap-1 text-[11px] text-neutral-400">
             <span className="sr-only">Ordina carte</span>
             <select
@@ -323,11 +322,6 @@ export function DeckBuilderView(): JSX.Element {
             ))}
           </div>
         </div>
-        {group === "type" && typeInfo.loaded < typeInfo.total && (
-          <span className="w-full text-[11px] text-neutral-400" aria-live="polite" data-testid="db-types-progress">
-            tipi {typeInfo.loaded}/{typeInfo.total}…
-          </span>
-        )}
       </div>
 
       {view === "text" ? (
@@ -336,90 +330,43 @@ export function DeckBuilderView(): JSX.Element {
         </div>
       ) : (
       <div className="min-h-0 flex-1 overflow-auto px-5 pb-8">
-        {group === "type"
-          ? (
-            <>
-              {typeSections.commanders.length > 0 && (
-                <TypeSection
-                  cat="creatures"
-                  labelOverride="Comandante"
-                  testidOverride="db-cat-commander"
-                  cards={typeSections.commanders}
-                  view={view}
-                  onPick={(c) => openPicker(c.id, c.name, c.providerId, "entry")}
-                  onMenu={(e, c) => openMenu(e, c.id)}
-                  metaOf={metaOf}
-                />
-              )}
-              {typeSections.byType.map(({ cat, cards }) => (
-                <TypeSection
-                  key={cat}
-                  cat={cat}
-                  cards={cards}
-                  view={view}
-                  onPick={(c) => openPicker(c.id, c.name, c.providerId, "entry")}
-                  onMenu={(e, c) => openMenu(e, c.id)}
-                  metaOf={metaOf}
-                  onRetry={typeInfo.retry}
-                />
-              ))}
-              {typeSections.maybe.length > 0 && (
-                <TypeSection
-                  cat="other"
-                  labelOverride="Maybeboard"
-                  testidOverride="db-cat-maybeboard"
-                  cards={typeSections.maybe}
-                  view={view}
-                  onPick={(c) => openPicker(c.id, c.name, c.providerId, "entry")}
-                  onMenu={(e, c) => openMenu(e, c.id)}
-                  metaOf={metaOf}
-                />
-              )}
-              {typeSections.tokens.length > 0 && (
-                <TypeSection
-                  cat="other"
-                  labelOverride="Token"
-                  testidOverride="db-cat-tokens"
-                  cards={typeSections.tokens}
-                  view={view}
-                  onPick={(c) => openPicker(c.id, c.name, c.providerId, "entry")}
-                  onMenu={(e, c) => openMenu(e, c.id)}
-                  metaOf={metaOf}
-                />
-              )}
-            </>
-          )
-          : zonesPresent
-              .filter(({ zone }) => zoneFilter === "all" || zoneFilter === zone)
-              .map(({ zone, label }) => {
-                const cards = visible.filter((c) => c.zone === zone);
-                if (cards.length === 0) return null;
-                const zoneCopies = cards.reduce((n, c) => n + c.qty, 0);
-                return (
-                  <section key={zone} aria-label={label} className="mb-5">
-                    <SectionHead
-                      testid={`db-zone-${zone}`}
-                      tag={label}
-                      count={`${cards.length} ${cards.length === 1 ? "carta" : "carte"} · ${zoneCopies} copie`}
-                    />
-                    <SectionCards
-                      cards={cards}
-                      view={view}
-                      onPick={(c) => openPicker(c.id, c.name, c.providerId, "entry")}
-                      onMenu={(e, c) => openMenu(e, c.id)}
-                      metaOf={metaOf}
-                    />
-                  </section>
-                );
-              })}
+        {macroSections.map(({ zone, label, cards }) => {
+          const copies = cards.reduce((n, c) => n + c.qty, 0);
+          return (
+            <section key={zone} aria-label={label} className="mb-6 last:mb-0">
+              <SectionHead
+                testid={`db-zone-${zone}`}
+                tag={label}
+                count={`${cards.length} ${cards.length === 1 ? "carta" : "carte"} · ${copies} copie`}
+              />
+              <SectionCards
+                cards={cards}
+                view={view}
+                onPick={(c) => openPicker(c.id, c.name, c.providerId, "entry")}
+                onMenu={(e, c) => openMenu(e, c.id)}
+                onPreview={(c) => setPreviewId(c.id)}
+                metaOf={metaOf}
+              />
+            </section>
+          );
+        })}
         {visible.length === 0 && (
           <p className="text-sm text-neutral-500">Nessuna carta corrisponde al filtro.</p>
         )}
       </div>
       )}
+          </div>
+          {/* isola sticky a destra: anteprima + statistiche */}
+          <aside
+            className="flex w-[340px] shrink-0 flex-col gap-3 overflow-y-auto border-l thin-border p-3 2xl:w-[380px]"
+            aria-label="Riepilogo mazzo"
+            data-testid="db-rail"
+          >
+            <CardPreview entry={previewEntry} meta={previewMeta} zoneLabel={previewZone} />
+            <DeckStats deck={deck} />
+          </aside>
         </div>
-        <SearchPanel />
-      </div>
+      )}
 
       {menu && (
         <CardContextMenu
@@ -560,53 +507,7 @@ function SectionHead({ testid, tag, count }: { testid: string; tag: string; coun
   );
 }
 
-/** Sezione per categoria di carta (Terre, Creature, …) con conteggi.
- * `labelOverride`/`testidOverride`: gruppi speciali (Comandante, Maybeboard, Token). */
-function TypeSection({
-  cat,
-  cards,
-  view,
-  onPick,
-  onMenu,
-  onRetry,
-  labelOverride,
-  testidOverride,
-  metaOf,
-}: {
-  cat: CardCategory;
-  cards: CardEntry[];
-  view: "grid" | "list";
-  onPick: (c: CardEntry) => void;
-  onMenu: (e: React.MouseEvent, c: CardEntry) => void;
-  onRetry?: () => void;
-  labelOverride?: string;
-  testidOverride?: string;
-  metaOf: (c: CardEntry) => { type?: string; mana?: string };
-}): JSX.Element {
-  const copies = cards.reduce((n, c) => n + c.qty, 0);
-  const label = labelOverride ?? CATEGORY_LABELS[cat];
-  return (
-    <section aria-label={label} className="mb-5">
-      <SectionHead
-        testid={testidOverride ?? `db-cat-${cat}`}
-        tag={label}
-        count={`${cards.length} ${cards.length === 1 ? "carta" : "carte"} · ${copies} copie`}
-      />
-      {cat === "unknown" && onRetry && (
-        <button
-          type="button"
-          onClick={onRetry}
-          className="mb-2 rounded-lg thin-border panel-2 px-2 py-1 text-[11px]"
-          title="Riprova a risolvere i tipi su Scryfall"
-          data-testid="db-types-retry"
-        >
-          Riprova tipi
-        </button>
-      )}
-      <SectionCards cards={cards} view={view} onPick={onPick} onMenu={onMenu} metaOf={metaOf} />
-    </section>
-  );
-}
+/** Sezione per macro-zona (Main Deck, Sideboard, …) con conteggi. */
 
 /** Griglia o lista di carte (condivisa tra sezioni zona e tipo). */
 function SectionCards({
@@ -614,19 +515,28 @@ function SectionCards({
   view,
   onPick,
   onMenu,
+  onPreview,
   metaOf,
 }: {
   cards: CardEntry[];
   view: "grid" | "list";
   onPick: (c: CardEntry) => void;
   onMenu: (e: React.MouseEvent, c: CardEntry) => void;
-  metaOf: (c: CardEntry) => { type?: string; mana?: string };
+  onPreview: (c: CardEntry) => void;
+  metaOf: (c: CardEntry) => { type?: string; mana?: string; gameChanger?: boolean };
 }): JSX.Element {
   if (view === "grid") {
     return (
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3.5 pb-1.5">
+      <div className="grid grid-cols-2 gap-4 pb-1.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {cards.map((c) => (
-          <CardTile key={c.id} card={c} meta={metaOf(c)} onPick={() => onPick(c)} onMenu={(e) => onMenu(e, c)} />
+          <CardTile
+            key={c.id}
+            card={c}
+            meta={metaOf(c)}
+            onPick={() => onPick(c)}
+            onMenu={(e) => onMenu(e, c)}
+            onHover={() => onPreview(c)}
+          />
         ))}
       </div>
     );
@@ -634,7 +544,14 @@ function SectionCards({
   return (
     <ul className="divide-y divide-neutral-900 rounded-lg thin-border">
       {cards.map((c) => (
-        <CardRow key={c.id} card={c} meta={metaOf(c)} onPick={() => onPick(c)} onMenu={(e) => onMenu(e, c)} />
+        <CardRow
+          key={c.id}
+          card={c}
+          meta={metaOf(c)}
+          onPick={() => onPick(c)}
+          onMenu={(e) => onMenu(e, c)}
+          onHover={() => onPreview(c)}
+        />
       ))}
     </ul>
   );
@@ -694,27 +611,6 @@ function CommanderPill({
         EDHREC ↗
       </button>
     </div>
-  );
-}
-
-function ZoneChip({
-  active, onClick, children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}): JSX.Element {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`rounded-[7px] px-3 py-[7px] text-xs font-medium ${
-        active ? "bg-neutral-200 font-semibold text-black" : "text-neutral-400 hover:text-neutral-100"
-      }`}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -976,11 +872,13 @@ function CardTile({
   meta,
   onPick,
   onMenu,
+  onHover,
 }: {
   card: CardEntry;
   meta: { type?: string; mana?: string; gameChanger?: boolean };
   onPick: () => void;
   onMenu: (e: React.MouseEvent) => void;
+  onHover: () => void;
 }): JSX.Element {
   const setQty = useDeck((s) => s.setQty);
   const cost = prettyManaCost(meta.mana);
@@ -989,6 +887,7 @@ function CardTile({
       className="overflow-hidden rounded-[10px] thin-border panel transition-colors hover:border-neutral-100"
       data-testid={`db-card-${card.id}`}
       onContextMenu={onMenu}
+      onMouseEnter={onHover}
     >
       <button
         type="button"
@@ -1060,14 +959,21 @@ function CardRow({
   meta,
   onPick,
   onMenu,
+  onHover,
 }: {
   card: CardEntry;
   meta: { type?: string; mana?: string; gameChanger?: boolean };
   onPick: () => void;
   onMenu: (e: React.MouseEvent) => void;
+  onHover: () => void;
 }): JSX.Element {
   return (
-    <li className="flex items-center gap-2 panel px-2 py-1.5" data-testid={`db-card-${card.id}`} onContextMenu={onMenu}>
+    <li
+      className="flex items-center gap-2 panel px-2 py-1.5"
+      data-testid={`db-card-${card.id}`}
+      onContextMenu={onMenu}
+      onMouseEnter={onHover}
+    >
       <button
         type="button"
         onClick={onPick}

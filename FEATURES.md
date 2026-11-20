@@ -27,15 +27,17 @@ sono token (una volta per progetto).
 
 ## DeckBuilder (vista mazzo della stessa lista)
 
-Sezione accanto allo Studio sulla **stessa lista condivisa**: griglia visuale
-su sfondo nero stile Archidekt/Moxfield (tile con artwork, badge quantità,
-set · numero), vista lista compatta, sezioni per zona, ricerca nome, filtro
-zona, ordine inserimento/nome/quantità. **Raggruppa per Zona o per Tipo**
-(Terre, Creature, Artefatti, Incantesimi, Istantanei, Stregonerie,
-Planeswalker, Battaglie, Altre: tipi risolti in bulk esatto (`/cards/collection`,
-un commander in ~2 richieste) con fallback individuale e fuzzy validato sul
-nome (mai sezioni errate); cache persistente v3 con tipo + layout + set di
-Scryfall; Comandante, Maybeboard e Token restano sezioni proprie).
+Sezione accanto allo Studio sulla **stessa lista condivisa**: dashboard a due
+colonne. A sinistra il mazzo, **sempre diviso per macro-zone** nell'ordine
+Main Deck (comandante accorpato) → Sideboard → Maybeboard (con Considering) →
+Tokens (Extra Deck e Custom solo se presenti), griglia a **5 carte per fila**
+su schermi grandi, vista lista o testo; ricerca per nome e ordinamento dentro
+le sezioni. A destra un'**isola sticky** con l'**anteprima grande della carta**
+sotto il mouse (artwork, costo, tipo, testo oracolo on-demand, prezzo, badge
+Game Changer) e le **statistiche compatte** (curva di mana, colori, terre,
+CMC medio, prezzo, bracket Commander con scala 1–5). Ricerca carte,
+**Consigliati EDHREC** e Sintassi vivono in una **scheda separata** ("Cerca"),
+non più aperta di default e non a fianco del mazzo.
 **Board Token ripulito**: Moxfield ci aggancia anche i token-copia come carte
 vere («The One Ring», «Glorious Gale»…): all'apertura del progetto le voci non
 token (layout token/emblem o set di soli token) vengono tolte dal mazzo — una
@@ -43,11 +45,10 @@ volta per progetto, con Undo; se Scryfall non risolve una voce, la si lascia
 dov'è (mai rimozioni a caso). Stessa pulizia prima di ogni export (singolo e
 in blocco), così i PDF non dipendono dalla cache.
 **Statistiche**: curva di mana, colori/identità, terre, CMC medio e prezzo
-totale USD (dati Scryfall in cache, pesati per quantità). Riepilogo copie per
-zona in testata. **Bracket Commander calcolato** sulla mainboard (main +
-comandante): 0 Game Changer → B2, 1–3 → B3, 4+ o mass land denial → B4, con
-scala 1–5, sintesi in una frase e nomi dei segnali (B1/B5 e le combo a 2
-carte non sono derivabili da una lista). **Game Changer ufficiali** dal flag
+totale USD (dati Scryfall in cache, pesati per quantità). **Bracket Commander
+calcolato** sulla mainboard (main + comandante): 0 Game Changer → B2, 1–3 →
+B3, 4+ o mass land denial → B4, con scala 1–5, sintesi in una frase e nomi dei
+segnali (B1/B5 e le combo a 2 carte non sono derivabili da una lista). **Game Changer ufficiali** dal flag
 `game_changer` di Scryfall, con badge **(!)** rosso su tile e righe. **Mano di test**: 7
 carte pescate dalla mainboard (comandante escluso), rimescola, mulligan
 londinese (una carta in meno per mulligan) e pescata singola, con terre e CMC

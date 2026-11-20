@@ -24,6 +24,33 @@ export interface ZoneCount {
   entries: number;
 }
 
+/** Macro-zone del DeckBuilder: sempre visibili, nell'ordine di gioco. */
+export type DeckMacroZone = "main" | "side" | "maybe" | "tokens" | "extra" | "custom";
+
+export const DECK_MACRO_ORDER: DeckMacroZone[] = ["main", "side", "maybe", "tokens", "extra", "custom"];
+
+export const DECK_MACRO_LABELS: Record<DeckMacroZone, string> = {
+  main: "Main Deck",
+  side: "Sideboard",
+  maybe: "Maybeboard",
+  tokens: "Tokens",
+  extra: "Extra Deck",
+  custom: "Custom",
+};
+
+/**
+ * Zona "visuale" del DeckBuilder. Il comandante sta col main (come in stampa),
+ * extra resta a parte se esiste, considering va nel Maybeboard.
+ */
+export function deckMacroZone(zone: Zone): DeckMacroZone {
+  if (zone === "commander" || zone === "main") return "main";
+  if (zone === "considering" || zone === "maybe") return "maybe";
+  if (zone === "side") return "side";
+  if (zone === "tokens") return "tokens";
+  if (zone === "extra") return "extra";
+  return "custom";
+}
+
 /**
  * Flusso di stampa CONTINUO: tutte le copie in ordine di zona, un solo layout,
  * pagine sempre piene (solo l'ultima può restare incompleta). Le zone non

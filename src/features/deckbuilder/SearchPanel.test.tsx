@@ -75,9 +75,13 @@ describe("SearchPanel", () => {
     vi.unstubAllGlobals();
   });
 
-  it("consigliati: filtra per identità, terre in fondo, quick-add", async () => {
+  it("consigliati: tab dedicata, filtra per identità, terre in fondo, quick-add", async () => {
     seedCommander();
     render(<SearchPanel />, { wrapper });
+
+    // default: ricerca (non i consigliati)
+    expect(screen.queryByText(/Top 100 per/)).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Consigliati" }));
 
     // identità RG: Zombie C (B) escluso; Plains (W) esclusa; terre in fondo
     expect(await screen.findByTestId("hit-x1", {}, { timeout: 3000 })).toBeInTheDocument();
@@ -90,6 +94,13 @@ describe("SearchPanel", () => {
     expect(added).toBeDefined();
     expect(added?.zone).toBe("main");
     expect(added?.qty).toBe(1);
+  });
+
+  it("standalone: occupa tutta la larghezza", () => {
+    seedCommander();
+    render(<SearchPanel standalone />, { wrapper });
+    expect(screen.getByTestId("search-panel").className).toContain("w-full");
+    expect(screen.getByTestId("search-panel").className).not.toContain("w-80");
   });
 
   it("barra rapida: invio cerca e mostra risultati", async () => {

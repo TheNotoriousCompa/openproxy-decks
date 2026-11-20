@@ -30,8 +30,8 @@ export interface ActiveSearch {
  * power/toughness/loyalty/rarità/ordinamento). I Consigliati sono la Top 100
  * per rank EDHREC nei colori del comandante, terre in fondo.
  */
-export function SearchPanel(): JSX.Element {
-  const [activeTab, setActiveTab] = useState<"recs" | "results" | "syntax">("recs");
+export function SearchPanel({ standalone = false }: { standalone?: boolean } = {}): JSX.Element {
+  const [activeTab, setActiveTab] = useState<"recs" | "results" | "syntax">("results");
   const [quick, setQuick] = useState("");
   const [search, setSearch] = useState<ActiveSearch | null>(null);
   const [advOpen, setAdvOpen] = useState(false);
@@ -83,8 +83,13 @@ export function SearchPanel(): JSX.Element {
 
   return (
     <aside
-      className="flex min-h-0 w-80 shrink-0 flex-col border-l thin-border"
+      className={
+        standalone
+          ? "flex min-h-0 w-full flex-col"
+          : "flex min-h-0 w-80 shrink-0 flex-col border-l thin-border"
+      }
       aria-label="Ricerca carte"
+      data-testid="search-panel"
     >
       <div className="p-4 pb-0">
         <div className="flex items-center gap-1 rounded-lg thin-border panel-2 px-3 py-2">

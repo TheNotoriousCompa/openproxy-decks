@@ -41,25 +41,27 @@ function seed(): void {
 }
 
 describe("DeckBuilder", () => {
-  it("sezioni per zona + tile con quantità + EDHREC", () => {
+  it("sempre per macro-zone: main (con comandante), sideboard, maybeboard, token", () => {
     seed();
     render(<DeckBuilderView />, { wrapper });
 
     expect(screen.getByTestId("deckbuilder-view")).toBeInTheDocument();
-    // default: raggruppo per tipo (comandante sempre separato, senza fetch)
-    expect(screen.getByTestId("db-group-type")).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId("db-cat-commander")).toHaveTextContent(/Comandante/);
-    // passo a zone: label + conteggi
-    fireEvent.click(screen.getByTestId("db-group-zone"));
+    // niente filtri zona/tipo: le sezioni sono sempre fisse
+    expect(screen.queryByTestId("db-group-zone")).toBeNull();
+    expect(screen.queryByTestId("db-group-type")).toBeNull();
     const mainSec = screen.getByTestId("db-zone-main");
     expect(mainSec).toHaveTextContent("Main Deck");
-    expect(mainSec.closest("section")).toHaveTextContent("2 carte");
-    expect(mainSec.closest("section")).toHaveTextContent("6 copie");
-    expect(screen.getByTestId("db-zone-commander")).toHaveTextContent("Commander");
+    // comandante accorpato al main: 3 carte, 7 copie
+    expect(mainSec.closest("section")).toHaveTextContent("3 carte");
+    expect(mainSec.closest("section")).toHaveTextContent("7 copie");
     const sideSec = screen.getByTestId("db-zone-side");
     expect(sideSec).toHaveTextContent("Sideboard");
     expect(sideSec.closest("section")).toHaveTextContent("1 carta");
+    expect(screen.queryByTestId("db-zone-commander")).toBeNull();
     expect(screen.queryByTestId("db-zone-tokens")).toBeNull();
+    // 5 colonne sulla griglia (layout dashboard)
+    const grid = screen.getByTestId("db-zone-main").closest("section")?.querySelector(".grid");
+    expect(grid?.className).toContain("xl:grid-cols-5");
     // totali: solo "8 copie" + riepilogo per zona
     const view = screen.getByTestId("deckbuilder-view");
     expect(view).toHaveTextContent("8 copie");
@@ -67,6 +69,9 @@ describe("DeckBuilder", () => {
     expect(breakdown).toHaveTextContent("6 Main Deck");
     expect(breakdown).toHaveTextContent("1 Commander");
     expect(breakdown).toHaveTextContent("1 Sideboard");
+    // rail sticky con anteprima + statistiche
+    expect(screen.getByTestId("db-rail")).toHaveTextContent("Statistiche");
+    expect(screen.getByTestId("db-rail")).toContainElement(screen.getByTestId("db-card-preview"));
     // comandante + link EDHREC comandante
     expect(screen.getByTestId("edhrec-commander")).toHaveAttribute(
       "aria-label",
@@ -94,77 +99,30 @@ describe("DeckBuilder", () => {
     fireEvent.change(screen.getByTestId("db-search"), { target: { value: "negate" } });
     expect(screen.queryByTestId("db-card-db-1")).toBeNull();
     expect(screen.getByTestId("db-card-db-4")).toBeInTheDocument();
+    // la sezione main sparisce dal filtro, resta solo Sideboard
+    expect(screen.queryByTestId("db-zone-main")).toBeNull();
+    expect(screen.getByTestId("db-zone-side")).toBeInTheDocument();
   });
 
-  it("raggruppa per tipo: istantanei, creature, terre", async () => {
-    const types: Record<string, string> = {
-      "lightning bolt": "Instant",
-      counterspell: "Instant",
-      "sauron, the dark lord": "Legendary Creature — Avatar",
-      negate: "Instant",
-      swamp: "Basic Land — Swamp",
-      cultivate: "Sorcery",
-      insect: "Token Creature — Insect",
-    };
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        // bulk collection: risponde con data + not_found come Scryfall
-        if (String(url).includes("/cards/collection")) {
-          const body = JSON.parse(String((init as { body?: string })?.body ?? "{}")) as {
-            identifiers?: { name?: string; set?: string }[];
-          };
-          const data = (body.identifiers ?? []).map((i) => ({
-            id: `uuid-${i.name}`,
-            name: i.name,
-            set: (i.set ?? "lea").toLowerCase(),
-            type_line: types[(i.name ?? "").toLowerCase()] ?? null,
-          }));
-          return { status: 200, ok: true, json: async () => ({ data, not_found: [] }) };
-        }
-        return {
-          status: 200,
-          ok: true,
-          json: async () => {
-            const m = String(url).match(/exact=([^&]+)/);
-            const name = m?.[1] ? decodeURIComponent(m[1]).toLowerCase() : "";
-            return { type_line: types[name] ?? null };
-          },
-        };
-      }),
+  it("macro-zone: maybeboard (con considering) e tokens in fondo", () => {
+    seed();
+    const add = useDeck.getState().add;
+    add({ name: "Cultivate", qty: 2, zone: "maybe", provider: "scryfall", hasBack: false });
+    add({ name: "Wish", qty: 1, zone: "considering", provider: "scryfall", hasBack: false });
+    add({ name: "Insect", qty: 3, zone: "tokens", provider: "scryfall", hasBack: false });
+    render(<DeckBuilderView />, { wrapper });
+    const maybe = screen.getByTestId("db-zone-maybe");
+    expect(maybe).toHaveTextContent("Maybeboard");
+    expect(maybe.closest("section")).toHaveTextContent("2 carte");
+    expect(maybe.closest("section")).toHaveTextContent("3 copie");
+    const tokens = screen.getByTestId("db-zone-tokens");
+    expect(tokens).toHaveTextContent("Tokens");
+    expect(tokens.closest("section")).toHaveTextContent("3 copie");
+    // ordine: main → side → maybe → tokens
+    const order = [...document.querySelectorAll('section [data-testid^="db-zone-"]')].map((el) =>
+      el.getAttribute("data-testid"),
     );
-    try {
-      seed();
-      // una terra + una maybe per coprire Terre e Maybeboard
-      const add = useDeck.getState().add;
-      add({ name: "Swamp", qty: 1, zone: "main", provider: "scryfall", hasBack: false });
-      add({ name: "Cultivate", qty: 2, zone: "maybe", provider: "scryfall", hasBack: false });
-      add({ name: "Insect", qty: 3, zone: "tokens", provider: "scryfall", hasBack: false });
-      render(<DeckBuilderView />, { wrapper });
-      fireEvent.click(screen.getByTestId("db-group-type"));
-      const instants = await screen.findByTestId("db-cat-instants", {}, { timeout: 5000 });
-      expect(instants).toHaveTextContent("Istantanei");
-      expect(instants.closest("section")).toHaveTextContent("3 carte");
-      const lands = screen.getByTestId("db-cat-lands");
-      expect(lands).toHaveTextContent("Terre");
-      expect(lands.closest("section")).toHaveTextContent("1 carta");
-      // comandante in sezione propria, non tra le creature
-      const cmd = screen.getByTestId("db-cat-commander");
-      expect(cmd).toHaveTextContent("Comandante");
-      expect(cmd.closest("section")).toHaveTextContent("1 carta");
-      expect(screen.queryByTestId("db-cat-creatures")).toBeNull();
-      // maybeboard tutta insieme, non sparpagliata per tipo
-      const maybe = screen.getByTestId("db-cat-maybeboard");
-      expect(maybe).toHaveTextContent("Maybeboard");
-      expect(maybe.closest("section")).toHaveTextContent("2 copie");
-      expect(screen.queryByTestId("db-cat-sorceries")).toBeNull();
-      // token in fondo in sezione propria, anche se creatura
-      const tokens = screen.getByTestId("db-cat-tokens");
-      expect(tokens).toHaveTextContent("Token");
-      expect(tokens.closest("section")).toHaveTextContent("3 copie");
-    } finally {
-      vi.unstubAllGlobals();
-    }
+    expect(order).toEqual(["db-zone-main", "db-zone-side", "db-zone-maybe", "db-zone-tokens"]);
   });
 
   it("stato vuoto con CTA verso lo Studio", () => {
@@ -227,6 +185,32 @@ describe("DeckBuilder", () => {
     expect(menu.querySelector(".max-h-44")).toBeNull();
     // l'azione distruttiva è presente nel DOM
     expect(screen.getByTestId("db-menu-remove")).toBeInTheDocument();
+  });
+
+  it("solo mazzo di default: anteprima in alto e ricerca in una scheda a sé", () => {
+    seed();
+    render(<DeckBuilderView />, { wrapper });
+
+    // default: niente pannello ricerca laterale, c'è l'anteprima grande
+    expect(screen.queryByTestId("search-panel")).toBeNull();
+    expect(screen.getByTestId("db-card-preview")).toBeInTheDocument();
+    expect(screen.getByTestId("db-preview-name")).toHaveTextContent("Sauron, the Dark Lord");
+    // hover su una tile → anteprima aggiornata (Moxfield-style)
+    fireEvent.mouseEnter(screen.getByTestId("db-card-db-1"));
+    expect(screen.getByTestId("db-preview-name")).toHaveTextContent("Lightning Bolt");
+    expect(screen.getByTestId("db-preview-type").textContent?.trim().length).toBeGreaterThan(0);
+  });
+
+  it("tab Cerca: pannello ricerca a tutta larghezza, si torna al mazzo", () => {
+    seed();
+    render(<DeckBuilderView />, { wrapper });
+    expect(screen.getByTestId("db-mode-deck")).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByTestId("db-mode-search"));
+    expect(screen.getByTestId("search-panel").className).toContain("w-full");
+    expect(screen.queryByTestId("db-card-preview")).toBeNull();
+    expect(screen.queryByTestId("db-card-db-1")).toBeNull();
+    fireEvent.click(screen.getByTestId("db-mode-deck"));
+    expect(screen.getByTestId("db-card-db-1")).toBeInTheDocument();
   });
 
   it("collezione: dal menu sulla carta e badge possedute", async () => {
@@ -295,14 +279,13 @@ describe("DeckBuilder", () => {
     render(<DeckBuilderView />, { wrapper });
     // il badge (!) compare sulla tile della Game Changer
     expect(screen.getAllByTestId("game-changer-badge").length).toBeGreaterThan(0);
-    // chip bracket nell'header statistiche: 1 GC → Bracket 3
-    expect(screen.getByTestId("deck-bracket-chip")).toHaveTextContent("B3 Upgraded · 1 GC");
-    // pannello: scala 1–5, sintesi in una frase, nomi GC
+    // l'isola statistiche mostra il bracket: 1 GC → Bracket 3
     const panel = screen.getByTestId("deck-bracket");
     expect(panel).toHaveTextContent("Bracket 3 · Upgraded");
+    expect(panel).toHaveTextContent("1 Game Changer");
     expect(panel).toHaveTextContent("1 Game Changer: entro i 3 consentiti dal Bracket 3.");
     expect(panel).toHaveTextContent("Lightning Bolt");
-    expect(panel).toHaveTextContent("Calcolato sulla mainboard");
+    expect(panel).toHaveTextContent("Mainboard (main + comandante)");
     expect(panel.querySelectorAll('[role="img"]')).toHaveLength(1);
   });
 
