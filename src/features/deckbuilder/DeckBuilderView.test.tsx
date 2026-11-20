@@ -315,6 +315,33 @@ describe("DeckBuilder", () => {
     expect(panel.querySelectorAll('[role="img"]')).toHaveLength(1);
   });
 
+  it("Del rimuove la carta sotto il mouse (con undo)", () => {
+    seed();
+    render(<DeckBuilderView />, { wrapper });
+    // senza hover non fa nulla
+    fireEvent.keyDown(window, { key: "Delete" });
+    expect(useDeck.getState().deck.some((c) => c.id === "db-1")).toBe(true);
+    // hover su Lightning Bolt → Del la elimina
+    fireEvent.mouseEnter(screen.getByTestId("db-card-db-1"));
+    fireEvent.keyDown(window, { key: "Delete" });
+    expect(useDeck.getState().deck.some((c) => c.id === "db-1")).toBe(false);
+    expect(screen.queryByTestId("db-card-db-1")).toBeNull();
+    expect(screen.getByTestId("db-remove-toast")).toHaveTextContent("Lightning Bolt rimossa");
+    // undo ripristina
+    useDeck.getState().undo();
+    expect(useDeck.getState().deck.some((c) => c.id === "db-1")).toBe(true);
+  });
+
+  it("Del non cancella mentre scrivi nel filtro", () => {
+    seed();
+    render(<DeckBuilderView />, { wrapper });
+    fireEvent.mouseEnter(screen.getByTestId("db-card-db-1"));
+    const input = screen.getByTestId("db-search") as HTMLInputElement;
+    input.focus();
+    fireEvent.keyDown(input, { key: "Delete" });
+    expect(useDeck.getState().deck.some((c) => c.id === "db-1")).toBe(true);
+  });
+
   it("collezione: bottone mazzo con dialogo di conferma", async () => {
     seed();
     render(<DeckBuilderView />, { wrapper });

@@ -103,6 +103,31 @@ export function DeckBuilderView(): JSX.Element {
     setMenu({ id, x: e.clientX, y: e.clientY });
   };
 
+  /** Cancella con Del la carta attualmente sotto il mouse (undo con Ctrl+Z). */
+  const [removeMsg, setRemoveMsg] = useState("");
+  useEffect(() => {
+    if (!removeMsg) return;
+    const t = window.setTimeout(() => setRemoveMsg(""), 2600);
+    return () => window.clearTimeout(t);
+  }, [removeMsg]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== "Delete" || e.repeat) return;
+      // mai mentre si scrive (filtro, editor testuale, form) o con overlay aperti
+      const el = document.activeElement as HTMLElement | null;
+      const tag = el?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el?.isContentEditable) return;
+      if (!previewId || menu || zoomId || picker || handOpen || collectOpen) return;
+      const entry = useDeck.getState().deck.find((c) => c.id === previewId);
+      if (!entry) return;
+      useDeck.getState().remove(entry.id);
+      setPreviewId(null);
+      setRemoveMsg(`${entry.name} rimossa · Ctrl+Z per annullare`);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [previewId, menu, zoomId, picker, handOpen, collectOpen]);
+
   const copies = totalCopies(deck);
   const commander = useMemo(() => deck.find((c) => isCommander(c)) ?? null, [deck]);
   /** carta dell'anteprima: ultima passata col mouse, altrimenti comandante/prima carta */
@@ -175,7 +200,7 @@ export function DeckBuilderView(): JSX.Element {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-black text-neutral-100" aria-label="DeckBuilder" data-testid="deckbuilder-view">
+    <div className="relative flex h-full min-h-0 flex-col bg-black text-neutral-100" aria-label="DeckBuilder" data-testid="deckbuilder-view">
       {/* intestazione deck: nome, totali, pill comandante + EDHREC */}
       <div className="flex flex-wrap items-center gap-4 border-b thin-border px-5 py-4">
         <h2 className="text-xl font-bold">
@@ -282,6 +307,9 @@ export function DeckBuilderView(): JSX.Element {
         />
         <span className="text-[11px] text-neutral-400" aria-live="polite" data-testid="db-count">
           {visible.length} {visible.length === 1 ? "voce" : "voci"}
+        </span>
+        <span className="hidden text-[10px] text-neutral-500 lg:inline" title="Passa il mouse su una carta e premi Canc">
+          Del rimuove la carta sotto il mouse
         </span>
         <div className="ml-auto flex items-center gap-2">
           <label className="flex items-center gap-1 text-[11px] text-neutral-400">
@@ -481,6 +509,15 @@ export function DeckBuilderView(): JSX.Element {
       {pickerBusy && <span className="sr-only" aria-live="polite">Salvataggio stampa…</span>}
       <PrintBusyToast job={printJob} />
       {showDecklist && <DecklistModal onClose={() => setShowDecklist(false)} />}
+      {removeMsg && (
+        <p
+          role="status"
+          data-testid="db-remove-toast"
+          className="panel-2 thin-border absolute bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-full px-3 py-1.5 text-xs text-neutral-300 shadow-[0_6px_20px_rgba(0,0,0,0.5)]"
+        >
+          {removeMsg}
+        </p>
+      )}
     </div>
   );
 }
