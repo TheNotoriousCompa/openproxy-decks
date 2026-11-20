@@ -332,6 +332,37 @@ describe("DeckBuilder", () => {
     expect(useDeck.getState().deck.some((c) => c.id === "db-1")).toBe(true);
   });
 
+  it("Del ripetuto: senza muovere il mouse prende la carta scorsa sotto il puntatore", async () => {
+    seed();
+    render(<DeckBuilderView />, { wrapper });
+    fireEvent.mouseMove(window, { clientX: 120, clientY: 90 });
+    fireEvent.mouseEnter(screen.getByTestId("db-card-db-1"));
+    // dopo la rimozione, il puntatore (fermo) cade sulla tile successiva
+    // (jsdom non implementa elementFromPoint: lo definiamo per il test)
+    const original = document.elementFromPoint;
+    Object.defineProperty(document, "elementFromPoint", {
+      configurable: true,
+      writable: true,
+      value: () => document.querySelector('[data-testid="db-card-db-2"]'),
+    });
+    try {
+      fireEvent.keyDown(window, { key: "Delete" });
+      await waitFor(() =>
+        expect(screen.getByTestId("db-preview-name")).toHaveTextContent("Counterspell"),
+      );
+      // secondo Del senza mousemove: elimina la nuova carta sotto il puntatore
+      fireEvent.keyDown(window, { key: "Delete" });
+      await waitFor(() => expect(useDeck.getState().deck.some((c) => c.id === "db-2")).toBe(false));
+      expect(screen.getByTestId("db-remove-toast")).toHaveTextContent("Counterspell rimossa");
+    } finally {
+      Object.defineProperty(document, "elementFromPoint", {
+        configurable: true,
+        writable: true,
+        value: original,
+      });
+    }
+  });
+
   it("Del non cancella mentre scrivi nel filtro", () => {
     seed();
     render(<DeckBuilderView />, { wrapper });

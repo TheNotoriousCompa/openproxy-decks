@@ -105,6 +105,15 @@ export function DeckBuilderView(): JSX.Element {
 
   /** Cancella con Del la carta attualmente sotto il mouse (undo con Ctrl+Z). */
   const [removeMsg, setRemoveMsg] = useState("");
+  /** ultima posizione del puntatore: dopo una rimozione la lista scala sotto il mouse */
+  const pointerRef = useRef<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    const onMove = (e: MouseEvent): void => {
+      pointerRef.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener("mousemove", onMove, { passive: true });
+    return () => window.removeEventListener("mousemove", onMove);
+  }, []);
   useEffect(() => {
     if (!removeMsg) return;
     const t = window.setTimeout(() => setRemoveMsg(""), 2600);
@@ -121,8 +130,22 @@ export function DeckBuilderView(): JSX.Element {
       const entry = useDeck.getState().deck.find((c) => c.id === previewId);
       if (!entry) return;
       useDeck.getState().remove(entry.id);
-      setPreviewId(null);
       setRemoveMsg(`${entry.name} rimossa · Ctrl+Z per annullare`);
+      // il mouse non si è mosso: la carta successiva è scorsa sotto il puntatore.
+      // Rileggi il DOM dopo il render e aggancia quella, così un altro Del funziona.
+      const pos = pointerRef.current;
+      if (!pos || typeof document.elementFromPoint !== "function") {
+        setPreviewId(null);
+        return;
+      }
+      window.requestAnimationFrame(() => {
+        if (typeof document.elementFromPoint !== "function") return;
+        const under = document
+          .elementFromPoint(pos.x, pos.y)
+          ?.closest<HTMLElement>('[data-testid^="db-card-"]');
+        const nextId = under?.getAttribute("data-testid")?.slice("db-card-".length) ?? null;
+        setPreviewId(nextId && useDeck.getState().deck.some((c) => c.id === nextId) ? nextId : null);
+      });
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
