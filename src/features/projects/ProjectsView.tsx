@@ -10,6 +10,8 @@ import { backend } from "@/services/backend";
 import { MoxfieldProfileImport } from "@/components/LeftPanel";
 import { batchCounts, buildMergedCards, exportMergedPdf } from "@/features/print/batchExport";
 import { CollectPrompt } from "@/features/collection/CollectPrompt";
+import { useJobProgress } from "@/hooks/useJobProgress";
+import { open as openPath } from "@tauri-apps/plugin-shell";
 import { consolidateItems } from "@/lib/collection";
 import type { CollectionItem } from "@/lib/collection";
 import { ensureActiveTokenBoardFixed } from "@/hooks/useTokenBoardFix";
@@ -47,6 +49,8 @@ export function ProjectsView(): JSX.Element {
   const [copies, setCopies] = useState(1);
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchStatus, setBatchStatus] = useState("");
+  const [batchDir, setBatchDir] = useState("");
+  const job = useJobProgress();
   const [collectItems, setCollectItems] = useState<CollectionItem[] | null>(null);
 
   useEffect(() => {
@@ -118,6 +122,7 @@ export function ProjectsView(): JSX.Element {
     if (ids.length === 0 || batchBusy) return;
     setBatchBusy(true);
     setCollectItems(null);
+    setBatchDir("");
     setBatchStatus(`Unisco ${ids.length} ${ids.length === 1 ? "progetto" : "progetti"}…`);
     try {
       // Board Token ripulito prima dell'unione (una volta per progetto)
@@ -134,12 +139,14 @@ export function ProjectsView(): JSX.Element {
       }
       const counts = batchCounts(fixed);
       const detail = counts.map((c) => `${c.name} (${c.copies})`).join(" + ");
-      const { res, verify } = await exportMergedPdf({
+      await job.start();
+      const { res, dir, verify } = await exportMergedPdf({
         values,
         cards,
         dirProjectId: ids[0] as string,
         filename: `unito-${Date.now()}.pdf`,
       });
+      setBatchDir(dir);
       // "Vuoi aggiungere alla collezione?": le carte davvero stampate
       // (con artwork, flag considering e moltiplicatore copie rispettati).
       const includeConsidering = values.includeConsidering ?? true;
@@ -167,6 +174,7 @@ export function ProjectsView(): JSX.Element {
     } catch (e) {
       setBatchStatus(`Export unito fallito: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
+      job.stop();
       setBatchBusy(false);
     }
   };
@@ -300,6 +308,30 @@ export function ProjectsView(): JSX.Element {
           <p className="mt-2 break-all text-xs text-neutral-300" aria-live="polite" data-testid="batch-status">
             {batchStatus}
           </p>
+        )}
+        {batchBusy && job.progress && (
+          <div className="mt-2" data-testid="batch-progress">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-800">
+              <div
+                className="h-full rounded-full bg-neutral-200 transition-[width] duration-200"
+                style={{ width: `${Math.round(job.progress.frac * 100)}%` }}
+              />
+            </div>
+            <p className="mt-1 text-[11px] text-neutral-400" aria-live="polite">
+              {job.progress.phase} · {Math.round(job.progress.frac * 100)}%
+            </p>
+          </div>
+        )}
+        {batchDir && !batchBusy && (
+          <button
+            type="button"
+            onClick={() => void openPath(batchDir).catch(() => undefined)}
+            data-testid="batch-open-dir"
+            className="panel thin-border mt-2 rounded-lg px-3 py-1.5 text-xs"
+            title={batchDir}
+          >
+            Apri cartella PDF
+          </button>
         )}
         {collectItems && collectItems.length > 0 && (
           <CollectPrompt

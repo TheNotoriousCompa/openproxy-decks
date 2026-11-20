@@ -236,6 +236,11 @@ sempre in path assoluto sotto `exports/` del progetto (mai relativi alla CWD) ·
 bottoni Apri PDF / Apri cartella · copie con sorgente illeggibile conteggiate
 e riportate (mai silenziose) · immagini PNG/JPEG/WEBP · singola/multipla/ZIP ·
 dedup asset · profili Minimum/Balanced(default)/High/Maximum · job queue con progress/cancel.
+**Export unito multi-progetto**: barra di avanzamento reale dagli eventi del
+backend (`job://progress`: elaborazione immagini → impaginazione → PDF), con
+percentuale e fase; a fine export bottone **Apri cartella PDF**.
+Nelle Impostazioni la sezione **Cartelle e download** mostra percorso e
+bottone **Apri** per PDF esportati e artwork del progetto attivo.
 
 ## Scorciatoie
 
@@ -250,4 +255,6 @@ pagina/carta · bleed · compressione · cache MB · server MPC Autofill
 (URL + verifica handshake, tab stampe community full-art di default) ·
 **fonti escluse** (drive MPC, tag MPC, set MTG) ·
 **spazio disco** (artwork/cache/PDF/tmp/modelli/database + pulizia temporanei) ·
+**cartelle e download** (PDF esportati e artwork del progetto attivo, con Apri) ·
+**aggiornamenti** (versione, controllo manuale, note release) ·
 clear image/processing/database cache · reset app.

@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { SettingsView } from "@/features/settings/SettingsView";
 import { useSettings } from "@/stores/settings";
+import { useProjects } from "@/stores/projects";
 
 const usage = {
   assets: { bytes: 3 * 1024 ** 3, files: 1800 },
@@ -18,6 +19,7 @@ vi.mock("@tauri-apps/api/core", () => ({
     if (cmd === "get_settings") return {};
     if (cmd === "storage_usage") return usage;
     if (cmd === "clear_tmp") return 200 * 1024 ** 2;
+    if (cmd === "project_folders") return { assets: "C:/p1/assets", exports: "C:/p1/exports" };
     throw new Error(`cmd ${cmd}`);
   }),
 }));
@@ -36,6 +38,7 @@ describe("SettingsView spazio disco", () => {
     vi.clearAllMocks();
     localStorage.clear();
     useSettings.setState({ loaded: false });
+    useProjects.setState({ activeId: null, projects: [] });
   });
 
   it("righe per area + totale + pulizia tmp", async () => {
@@ -49,6 +52,15 @@ describe("SettingsView spazio disco", () => {
     fireEvent.click(screen.getByTestId("storage-clear-tmp"));
     await waitFor(() => expect(vi.mocked(invoke)).toHaveBeenCalledWith("clear_tmp"));
     await waitFor(() => expect(screen.getByText(/liberati/)).toBeInTheDocument());
+  });
+
+  it("cartelle e download: percorsi del progetto attivo + Apri", async () => {
+    useProjects.setState({ activeId: "p1" });
+    render(<SettingsView />);
+    expect(await screen.findByTestId("folder-exports")).toHaveTextContent("C:/p1/exports");
+    expect(screen.getByTestId("folder-assets")).toHaveTextContent("C:/p1/assets");
+    expect(screen.getByTestId("open-folder-exports")).toHaveTextContent("Apri");
+    expect(screen.getByTestId("open-folder-assets")).toBeInTheDocument();
   });
 
   it("senza backend: messaggio desktop-only", async () => {

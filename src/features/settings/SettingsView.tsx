@@ -9,6 +9,9 @@ import { clearTmp, fetchStorageUsage, formatBytes, totalBytes, type StorageUsage
 import { currentVersion, RELEASES_URL } from "@/lib/updater";
 import { useUpdater } from "@/stores/updater";
 import { openExternal } from "@/lib/external";
+import { backend } from "@/services/backend";
+import { useProjects } from "@/stores/projects";
+import { open } from "@tauri-apps/plugin-shell";
 
 export function SettingsView(): JSX.Element {
   const { dpi, upscaleMode, cacheMb, mpcServerUrl, cardLang, loaded, set, load } = useSettings();
@@ -20,10 +23,37 @@ export function SettingsView(): JSX.Element {
   const [storageMsg, setStorageMsg] = useState("");
   const [version, setVersion] = useState("");
   const upd = useUpdater();
+  const activeId = useProjects((s) => s.activeId);
+  const [folders, setFolders] = useState<{ assets: string; exports: string } | null>(null);
+  const [folderMsg, setFolderMsg] = useState("");
 
   useEffect(() => {
     void currentVersion().then(setVersion);
   }, []);
+
+  useEffect(() => {
+    if (!activeId) {
+      setFolders(null);
+      setFolderMsg("");
+      return;
+    }
+    let cancelled = false;
+    void backend
+      .projectFolders(activeId)
+      .then((f) => {
+        if (cancelled) return;
+        setFolders(f);
+        setFolderMsg("");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setFolders(null);
+        setFolderMsg("Cartelle disponibili solo nell'app desktop.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeId]);
 
   useEffect(() => {
     void load();
@@ -246,6 +276,30 @@ export function SettingsView(): JSX.Element {
         )}
       </section>
 
+      <section className="space-y-2" aria-label="Cartelle e download">
+        <h2 className="text-sm font-semibold">Cartelle e download</h2>
+        <p className="text-xs text-neutral-500">
+          I PDF (anche quelli uniti) finiscono nella cartella export del progetto. L'unione usa la
+          cartella del primo progetto selezionato.
+        </p>
+        {!activeId && (
+          <p className="text-xs text-neutral-500" data-testid="folders-empty">
+            Apri un progetto per vedere le sue cartelle.
+          </p>
+        )}
+        {folders && (
+          <div className="space-y-1.5">
+            <FolderRow label="PDF esportati" path={folders.exports} testid="folder-exports" />
+            <FolderRow label="Artwork" path={folders.assets} testid="folder-assets" />
+          </div>
+        )}
+        {folderMsg && (
+          <p className="text-xs text-neutral-500" role="status">
+            {folderMsg}
+          </p>
+        )}
+      </section>
+
       <section className="space-y-2" aria-label="Aggiornamenti">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-sm font-semibold">Aggiornamenti</h2>
@@ -342,5 +396,26 @@ function StorageRow({ label, area, hint }: { label: string; area: { bytes: numbe
         <span className="text-neutral-500">· {area.files} file</span>
       </span>
     </li>
+  );
+}
+
+/** Riga cartella: percorso troncato + Apri nel file manager. */
+function FolderRow({ label, path, testid }: { label: string; path: string; testid: string }): JSX.Element {
+  return (
+    <div className="panel-2 thin-border flex items-center gap-2 rounded px-2 py-1.5" data-testid={testid}>
+      <span className="shrink-0 text-xs text-neutral-300">{label}</span>
+      <span className="min-w-0 flex-1 truncate text-[11px] text-neutral-500" title={path}>
+        {path}
+      </span>
+      <button
+        type="button"
+        onClick={() => void open(path).catch(() => undefined)}
+        aria-label={`Apri cartella ${label}`}
+        data-testid={`open-${testid}`}
+        className="panel thin-border shrink-0 rounded px-2 py-0.5 text-[11px]"
+      >
+        Apri
+      </button>
+    </div>
   );
 }

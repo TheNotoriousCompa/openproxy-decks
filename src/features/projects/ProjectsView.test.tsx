@@ -130,6 +130,8 @@ describe("ProjectsView export in blocco", () => {
     // token dopo il main anche nel payload (il backend ordina comunque uguale)
     expect(cards.map((c) => c.zone)).toEqual(["main", "tokens"]);
     expect(screen.getByTestId("batch-status")).toHaveTextContent("misure OK");
+    // scorciatoia per aprire la cartella dell'export unito
+    expect(await screen.findByTestId("batch-open-dir")).toHaveTextContent("Apri cartella PDF");
   });
 
   it("sezione profilo Moxfield visibile nei Progetti", async () => {
