@@ -2,12 +2,10 @@ import { useState } from "react";
 import { LeftPanel } from "@/components/LeftPanel";
 import { Divider } from "@/components/Divider";
 import { PrintPicker } from "@/components/PrintPicker";
-import { PdfProgressModal } from "@/components/PdfProgressModal";
 import { PrintBusyToast } from "@/components/PrintBusyToast";
 import { DecklistModal } from "@/components/DecklistModal";
 import { PrintForm } from "@/features/print/PrintForm";
 import { SheetsPreview } from "@/features/print/SheetsPreview";
-import { CollectPrompt } from "@/features/collection/CollectPrompt";
 import { usePrintBuilder } from "@/features/print/usePrintBuilder";
 import { useChoosePrint } from "@/hooks/useChoosePrint";
 import { useUi } from "@/stores/ui";
@@ -105,15 +103,7 @@ export function StudioView(): JSX.Element {
         />
       )}
       {pickerBusy && <span className="sr-only" aria-live="polite">Salvataggio stampa…</span>}
-      {pb.collectItems && pb.collectItems.length > 0 && (
-        <CollectPrompt
-          title="Vuoi aggiungere questo deck alla tua collezione?"
-          items={pb.collectItems}
-          onClose={pb.dismissCollect}
-        />
-      )}
       <PrintBusyToast job={printJob} />
-      <PdfProgressModal progress={pb.progress} status={pb.status} detail={pb.progDetail} />
       {showDecklist && <DecklistModal onClose={() => setShowDecklist(false)} />}
     </div>
   );

@@ -449,7 +449,6 @@ export function PrintForm({ pb }: { pb: PrintBuilderApi }): JSX.Element {
               Esporta PDF
             </button>
           </div>
-          {pb.progress !== null && <p className="mt-1">Elaborazione…</p>}
           {pb.status && <p className="mt-2 break-all" aria-live="polite">{pb.status}</p>}
           {pb.lastPdf && (
             <div className="mt-2 flex flex-wrap gap-2">

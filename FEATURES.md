@@ -239,6 +239,10 @@ dedup asset · profili Minimum/Balanced(default)/High/Maximum · job queue con p
 **Export unito multi-progetto**: barra di avanzamento reale dagli eventi del
 backend (`job://progress`: elaborazione immagini → impaginazione → PDF), con
 percentuale e fase; a fine export bottone **Apri cartella PDF**.
+**Export globale e persistente**: la finestrella sticky in basso a sinistra
+mostra l'avanzamento dell'export PDF (singolo o unito) anche cambiando tab o
+vista; a fine lavoro offre **Apri PDF / Apri cartella** e l'eventuale errore.
+Il prompt "aggiungi alla collezione" è globale, non legato alla vista.
 Nelle Impostazioni la sezione **Cartelle e download** mostra percorso e
 bottone **Apri** per PDF esportati e artwork del progetto attivo.
 

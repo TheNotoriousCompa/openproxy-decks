@@ -14,14 +14,13 @@ import { usePrint } from "@/stores/print";
 import { useProjects } from "@/stores/projects";
 import { printSettingsSchema } from "@/lib/schemas";
 import { computeLayout, layoutInputFrom } from "@/lib/layout";
-import { requiredPixels } from "@/lib/units";
 import { BUILT_IN_PRESETS, deletePreset, listPresets, newPresetId, savePreset, type PrintPreset } from "@/lib/presets";
 import type { PrintSettings } from "@/types";
 import { printZoneOf, flowCopies, flowCounts, type PrintFlow } from "@/features/print/printModel";
 import { buildExportArgs } from "@/features/print/batchExport";
 import { ensureActiveTokenBoardFixed } from "@/hooks/useTokenBoardFix";
 import { deckEntryToItem, consolidateItems } from "@/lib/collection";
-import type { CollectionItem } from "@/lib/collection";
+import { useExportJob } from "@/stores/exportJob";
 
 export interface VerifyReport {
   pages: number;
@@ -38,21 +37,6 @@ export interface VerifyReport {
 export const VERIFY_TOL_PCT = 0.5;
 export const VERIFY_PRINTER_ERR_PCT = 0.3;
 
-/** Dettaglio avanzamento export: stima iniziale + avanzamento reale dal backend. */
-export interface ExportProgress {
-  /** frazione mostrata 0..1 (mai oltre 0.97 finché non finisce davvero) */
-  frac: number;
-  /** fase in italiano */
-  phase: string;
-  /** copie stimate completate / totali */
-  done: number;
-  total: number;
-  /** secondi rimasti stimati (live) oppure null */
-  etaSecs: number | null;
-  /** MB finali stimati */
-  estMb: number;
-}
-
 export interface PrintBuilderApi {
   deck: ReturnType<typeof useDeck.getState>["deck"];
   values: PrintSettings;
@@ -61,8 +45,6 @@ export interface PrintBuilderApi {
   sheetError: string | null;
   totalPages: number;
   status: string;
-  progress: number | null;
-  progDetail: ExportProgress | null;
   lastPdf: { path: string; dir: string } | null;
   verify: VerifyReport | null;
   verifyBusy: boolean;
@@ -78,24 +60,18 @@ export interface PrintBuilderApi {
   saveCurrentAsPreset: () => Promise<void>;
   removePreset: (id: string) => Promise<void>;
   exportPdf: () => Promise<void>;
-  openPath: (p: string) => void;
-  /** voci appena esportate in attesa di conferma "aggiungi alla collezione" */
-  collectItems: CollectionItem[] | null;
-  dismissCollect: () => void;
+  openPath: (m: string) => void;
 }
 
 export function usePrintBuilder(): PrintBuilderApi {
   const deck = useDeck((s) => s.deck);
   const print = usePrint();
   const [status, setStatus] = useState("");
-  const [progress, setProgress] = useState<number | null>(null);
-  const [progDetail, setProgDetail] = useState<ExportProgress | null>(null);
   const [lastPdf, setLastPdf] = useState<{ path: string; dir: string } | null>(null);
   const [verify, setVerify] = useState<VerifyReport | null>(null);
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [customPresets, setCustomPresets] = useState<PrintPreset[]>([]);
   const [presetId, setPresetId] = useState<string>(BUILT_IN_PRESETS[0]?.id ?? "");
-  const [collectItems, setCollectItems] = useState<CollectionItem[] | null>(null);
 
   const { register, handleSubmit, setValue, watch, reset, formState } = useForm<PrintSettings>({
     resolver: zodResolver(printSettingsSchema),
@@ -196,13 +172,16 @@ export function usePrintBuilder(): PrintBuilderApi {
 
   const exportPdf = async (): Promise<void> => {
     setStatus("");
-    setProgress(0);
-    setProgDetail(null);
     setLastPdf(null);
-    setCollectItems(null);
     setVerify(null);
-    let timer: number | undefined;
-    let unlisten: (() => void) | null = null;
+    const st = useExportJob.getState();
+    if (st.job?.state === "running") {
+      setStatus("Export già in corso: segui l'avanzamento nella finestrella in basso a sinistra.");
+      return;
+    }
+    const projectId = useProjects.getState().activeId ?? "unassigned";
+    const projectName = useProjects.getState().projects.find((p) => p.id === projectId)?.name;
+    st.begin("single", projectName ? `PDF · ${projectName}` : "Export PDF");
     try {
       // Pulizia one-time del board Token (Moxfield ci infila anche carte vere):
       // fatta qui in modo deterministico, così il PDF non dipende da quando la
@@ -226,62 +205,10 @@ export function usePrintBuilder(): PrintBuilderApi {
           : [],
       );
       if (cards.length === 0) {
+        st.dismiss();
         setStatus("Nessuna carta con immagine da stampare (aggiungi artwork o carte custom).");
-        setProgress(null);
         return;
       }
-      // Stima iniziale: copie totali (fronte+retro) e peso da pixel richiesti.
-      const total = cards.reduce(
-        (n, c) => n + Math.max(1, c.qty) + (c.back_src_path ? Math.max(1, c.qty) : 0),
-        0,
-      );
-      const reqW = requiredPixels(values.cardWmm + values.bleedMm * 2, values.dpi);
-      const reqH = requiredPixels(values.cardHmm + values.bleedMm * 2, values.dpi);
-      const estMb = Math.max(1, Math.round((total * reqW * reqH * 3 * 0.09) / 1e6));
-      const startAt = Date.now();
-      let shown = 0;
-      let target = 0;
-      let live = false;
-      let phase = "Preparazione…";
-      const push = (): void => {
-        const elapsed = (Date.now() - startAt) / 1000;
-        const done = Math.min(total, Math.round((Math.min(shown, 0.8) / 0.8) * total));
-        const rate = elapsed > 2 && done > 0 ? done / elapsed : null;
-        const etaSecs = rate !== null && done < total ? Math.max(1, Math.round((total - done) / rate)) : null;
-        setProgress(shown);
-        setProgDetail({ frac: shown, phase, done, total, etaSecs, estMb });
-      };
-      push();
-      timer = window.setInterval(() => {
-        // insegue il backend senza mai superarlo (tetto 0.97); senza backend
-        // avanza da solo con curva mock che rallenta verso il 95%.
-        if (live) {
-          shown += (Math.min(target, 0.97) - shown) * 0.25;
-        } else {
-          shown += (0.95 - shown) * 0.06;
-          phase = shown < 0.5 ? "Elaborazione immagini…" : shown < 0.85 ? "Impaginazione…" : "Scrittura PDF…";
-        }
-        push();
-      }, 150);
-      try {
-        const { listen } = await import("@tauri-apps/api/event");
-        unlisten = await listen<{ id: string; progress: number; status: string }>(
-          "job://progress",
-          (e) => {
-            live = true;
-            target = Math.max(0, Math.min(1, e.payload.progress));
-            const st = e.payload.status;
-            phase = st.includes("layout")
-              ? "Impaginazione…"
-              : st.includes("done")
-                ? "Scrittura PDF…"
-                : "Elaborazione immagini…";
-          },
-        );
-      } catch {
-        live = false; // browser/dev: curva mock, il 100% arriva alla fine vera
-      }
-      const projectId = useProjects.getState().activeId ?? "unassigned";
       const outDir = await invoke<string>("export_dir", { projectId });
       const filename = `print-${Date.now()}.pdf`;
       const res = await invoke<{
@@ -303,6 +230,11 @@ export function usePrintBuilder(): PrintBuilderApi {
           args: buildExportArgs(values, cards, projectId, `${outDir}/${filename}`),
         },
       );
+      st.finish({
+        detail: `${res.pages} pagine · ${res.unique_assets} asset unici / ${res.total_copies} copie · ${(res.bytes / 1024).toFixed(0)} KB`,
+        pdfPath: res.path,
+        dir: outDir,
+      });
       setStatus(
         `PDF creato: ${res.pages} pagine · ${res.unique_assets} asset unici / ${res.total_copies} copie · ${(res.bytes / 1024).toFixed(0)} KB → ${res.path}` +
           (res.backs_printed > 0 ? ` · retro: ${res.backs_printed} copie su ${res.back_pages} pagine` : "") +
@@ -313,7 +245,7 @@ export function usePrintBuilder(): PrintBuilderApi {
       setLastPdf({ path: res.path, dir: outDir });
       // "Vuoi aggiungere questo deck alla tua collezione?": solo le carte
       // davvero stampate (con artwork, flag considering rispettato).
-      setCollectItems(
+      st.setCollectItems(
         consolidateItems(
           currentDeck
             .filter((c) => values.includeConsidering !== false || c.zone !== "considering")
@@ -323,17 +255,10 @@ export function usePrintBuilder(): PrintBuilderApi {
       );
       // Verifica dimensionale automatica (100% + delta stampante ±0.3%).
       await runVerify(res.path, values.cardWmm, values.cardHmm, values.bleedMm);
-      // Chiusura pulita: 100% visibile un attimo, poi via.
-      setProgress(1);
-      setProgDetail((d) => (d ? { ...d, frac: 1, phase: "Completato", done: d.total, etaSecs: 0 } : d));
-      await new Promise<void>((r) => window.setTimeout(r, 800));
     } catch (e) {
-      setStatus(`Export fallito (solo app desktop): ${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-      if (timer !== undefined) window.clearInterval(timer);
-      unlisten?.();
-      setProgress(null);
-      setProgDetail(null);
+      const msg = `Export fallito (solo app desktop): ${e instanceof Error ? e.message : String(e)}`;
+      useExportJob.getState().fail(msg);
+      setStatus(msg);
     }
   };
 
@@ -349,8 +274,6 @@ export function usePrintBuilder(): PrintBuilderApi {
     sheetError,
     totalPages,
     status,
-    progress,
-    progDetail,
     lastPdf,
     verify,
     verifyBusy,
@@ -367,7 +290,5 @@ export function usePrintBuilder(): PrintBuilderApi {
     removePreset,
     exportPdf,
     openPath,
-    collectItems,
-    dismissCollect: () => setCollectItems(null),
   };
 }

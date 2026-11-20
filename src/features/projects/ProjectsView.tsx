@@ -9,8 +9,7 @@ import { useUi } from "@/stores/ui";
 import { backend } from "@/services/backend";
 import { MoxfieldProfileImport } from "@/components/LeftPanel";
 import { batchCounts, buildMergedCards, exportMergedPdf } from "@/features/print/batchExport";
-import { CollectPrompt } from "@/features/collection/CollectPrompt";
-import { useJobProgress } from "@/hooks/useJobProgress";
+import { useExportJob } from "@/stores/exportJob";
 import { open as openPath } from "@tauri-apps/plugin-shell";
 import { consolidateItems } from "@/lib/collection";
 import type { CollectionItem } from "@/lib/collection";
@@ -50,8 +49,7 @@ export function ProjectsView(): JSX.Element {
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchStatus, setBatchStatus] = useState("");
   const [batchDir, setBatchDir] = useState("");
-  const job = useJobProgress();
-  const [collectItems, setCollectItems] = useState<CollectionItem[] | null>(null);
+  const exportJob = useExportJob((s) => s.job);
 
   useEffect(() => {
     void loadSummaries(true);
@@ -120,8 +118,11 @@ export function ProjectsView(): JSX.Element {
   const runBatch = async (): Promise<void> => {
     const ids = summaries.filter((p) => selected.has(p.id)).map((p) => p.id);
     if (ids.length === 0 || batchBusy) return;
+    if (useExportJob.getState().job?.state === "running") {
+      setBatchStatus("Export già in corso: segui l'avanzamento nella finestrella in basso a sinistra.");
+      return;
+    }
     setBatchBusy(true);
-    setCollectItems(null);
     setBatchDir("");
     setBatchStatus(`Unisco ${ids.length} ${ids.length === 1 ? "progetto" : "progetti"}…`);
     try {
@@ -139,7 +140,8 @@ export function ProjectsView(): JSX.Element {
       }
       const counts = batchCounts(fixed);
       const detail = counts.map((c) => `${c.name} (${c.copies})`).join(" + ");
-      await job.start();
+      const ej = useExportJob.getState();
+      ej.begin("batch", `PDF unito · ${ids.length} ${ids.length === 1 ? "progetto" : "progetti"}`);
       const { res, dir, verify } = await exportMergedPdf({
         values,
         cards,
@@ -147,6 +149,11 @@ export function ProjectsView(): JSX.Element {
         filename: `unito-${Date.now()}.pdf`,
       });
       setBatchDir(dir);
+      ej.finish({
+        detail: `${res.pages} pagine · ${res.total_copies} copie · ${(res.bytes / 1024).toFixed(0)} KB`,
+        pdfPath: res.path,
+        dir,
+      });
       // "Vuoi aggiungere alla collezione?": le carte davvero stampate
       // (con artwork, flag considering e moltiplicatore copie rispettati).
       const includeConsidering = values.includeConsidering ?? true;
@@ -164,7 +171,7 @@ export function ProjectsView(): JSX.Element {
           });
         }
       }
-      setCollectItems(consolidateItems(raw));
+      ej.setCollectItems(consolidateItems(raw));
       setBatchStatus(
         `PDF unito [${detail}]: ${res.pages} pagine · ${res.total_copies} copie · ${(res.bytes / 1024).toFixed(0)} KB → ${res.path}` +
           (verify ? (verify.pass ? ` · misure OK (${verify.worst_dev_pct.toFixed(1)}%)` : " · FUORI TOLLERANZA") : " · verifica non disponibile") +
@@ -172,9 +179,10 @@ export function ProjectsView(): JSX.Element {
           (noArt.length > 0 ? ` — senza artwork: ${noArt.slice(0, 5).join("; ")}${noArt.length > 5 ? ` (+${noArt.length - 5})` : ""}` : ""),
       );
     } catch (e) {
-      setBatchStatus(`Export unito fallito: ${e instanceof Error ? e.message : String(e)}`);
+      const msg = `Export unito fallito: ${e instanceof Error ? e.message : String(e)}`;
+      useExportJob.getState().fail(msg);
+      setBatchStatus(msg);
     } finally {
-      job.stop();
       setBatchBusy(false);
     }
   };
@@ -309,16 +317,16 @@ export function ProjectsView(): JSX.Element {
             {batchStatus}
           </p>
         )}
-        {batchBusy && job.progress && (
+        {batchBusy && exportJob?.state === "running" && exportJob.kind === "batch" && (
           <div className="mt-2" data-testid="batch-progress">
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-800">
               <div
                 className="h-full rounded-full bg-neutral-200 transition-[width] duration-200"
-                style={{ width: `${Math.round(job.progress.frac * 100)}%` }}
+                style={{ width: `${Math.round(exportJob.frac * 100)}%` }}
               />
             </div>
             <p className="mt-1 text-[11px] text-neutral-400" aria-live="polite">
-              {job.progress.phase} · {Math.round(job.progress.frac * 100)}%
+              {exportJob.phase} · {Math.round(exportJob.frac * 100)}%
             </p>
           </div>
         )}
@@ -332,13 +340,6 @@ export function ProjectsView(): JSX.Element {
           >
             Apri cartella PDF
           </button>
-        )}
-        {collectItems && collectItems.length > 0 && (
-          <CollectPrompt
-            title="Vuoi aggiungere questi deck alla tua collezione?"
-            items={collectItems}
-            onClose={() => setCollectItems(null)}
-          />
         )}
       </section>
 

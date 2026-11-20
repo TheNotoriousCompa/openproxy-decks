@@ -1,6 +1,9 @@
 import { useEffect, useRef } from "react";
 import { TopBar } from "@/components/TopBar";
 import { UpdateBanner } from "@/components/UpdateBanner";
+import { ExportToast } from "@/components/ExportToast";
+import { CollectPrompt } from "@/features/collection/CollectPrompt";
+import { useExportJob } from "@/stores/exportJob";
 import { ProjectsView } from "@/features/projects/ProjectsView";
 import { StudioView } from "@/features/studio/StudioView";
 import { DeckBuilderView } from "@/features/deckbuilder/DeckBuilderView";
@@ -21,6 +24,8 @@ import { useUpdater } from "@/stores/updater";
 export function App(): JSX.Element {
   const tab = useUi((s) => s.tab);
   const load = useProjects((s) => s.load);
+  const collectItems = useExportJob((s) => s.collectItems);
+  const setCollectItems = useExportJob((s) => s.setCollectItems);
   useUndoRedo();
   useTokenBoardFix();
 
@@ -145,6 +150,14 @@ export function App(): JSX.Element {
         {tab === "deckbuilder" && <DeckBuilderView />}
         {tab === "collection" && (
           <div className="flex-1 overflow-auto"><CollectionView /></div>
+        )}
+        <ExportToast />
+        {collectItems && collectItems.length > 0 && (
+          <CollectPrompt
+            title="Vuoi aggiungere queste carte alla tua collezione?"
+            items={collectItems}
+            onClose={() => setCollectItems(null)}
+          />
         )}
       </div>
     </QueryClientProvider>
