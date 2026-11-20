@@ -59,9 +59,9 @@ describe("DeckBuilder", () => {
     expect(sideSec.closest("section")).toHaveTextContent("1 carta");
     expect(screen.queryByTestId("db-zone-commander")).toBeNull();
     expect(screen.queryByTestId("db-zone-tokens")).toBeNull();
-    // 5 colonne sulla griglia (layout dashboard)
+    // 6 colonne fisse sulla griglia (layout dashboard)
     const grid = screen.getByTestId("db-zone-main").closest("section")?.querySelector(".grid");
-    expect(grid?.className).toContain("xl:grid-cols-5");
+    expect(grid?.className).toContain("grid-cols-6");
     // totali: solo "8 copie" + riepilogo per zona
     const view = screen.getByTestId("deckbuilder-view");
     expect(view).toHaveTextContent("8 copie");

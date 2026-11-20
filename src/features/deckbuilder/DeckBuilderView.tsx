@@ -527,7 +527,7 @@ function SectionCards({
 }): JSX.Element {
   if (view === "grid") {
     return (
-      <div className="grid grid-cols-2 gap-4 pb-1.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <div className="grid grid-cols-6 gap-3 pb-1.5">
         {cards.map((c) => (
           <CardTile
             key={c.id}

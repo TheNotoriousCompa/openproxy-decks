@@ -44,7 +44,7 @@ export function CardPreview({
 
   return (
     <div className="panel-2 thin-border flex shrink-0 gap-3 rounded-xl p-3" data-testid="db-card-preview">
-      <div className="relative h-[142px] w-[101px] shrink-0 overflow-hidden rounded-lg bg-black shadow-[0_8px_20px_rgba(0,0,0,0.55)]">
+      <div className="relative h-[168px] w-[120px] shrink-0 overflow-hidden rounded-lg bg-black shadow-[0_8px_20px_rgba(0,0,0,0.55)]">
         <ArtworkImage stored={entry.imageFront} name={entry.name} />
         {meta?.gameChanger && (
           <span className="absolute left-1.5 top-1.5">
