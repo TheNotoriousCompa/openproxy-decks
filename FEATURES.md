@@ -240,7 +240,8 @@ dedup asset · profili Minimum/Balanced(default)/High/Maximum · job queue con p
 ## Scorciatoie
 
 `Ctrl/Cmd+Z` annulla · `Ctrl/Cmd+Shift+Z` o `Ctrl/Cmd+Y` ripeti · `Tab` naviga pannelli ·
-frecce sui divisori ridimensionano · `Enter` conferma dialoghi.
+frecce sui divisori ridimensionano · `Enter` conferma dialoghi ·
+`Del` (DeckBuilder) rimuove la carta sotto il mouse, con undo.
 
 ## Impostazioni
 
