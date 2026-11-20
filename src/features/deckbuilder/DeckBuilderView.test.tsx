@@ -104,6 +104,30 @@ describe("DeckBuilder", () => {
     expect(screen.getByTestId("db-zone-side")).toBeInTheDocument();
   });
 
+  it("main deck diviso per tipo di carta (sottosezioni), come prima", () => {
+    seed();
+    putMeta({ name: "Lightning Bolt" }, { typeLine: "Instant" }, true);
+    putMeta({ name: "Counterspell" }, { typeLine: "Instant" }, true);
+    putMeta({ name: "Sauron, the Dark Lord" }, { typeLine: "Legendary Creature — Avatar" }, true);
+    putMeta({ name: "Negate" }, { typeLine: "Instant" }, true);
+    render(<DeckBuilderView />, { wrapper });
+
+    const instants = screen.getByTestId("db-type-main-instants");
+    expect(instants).toHaveTextContent("Istantanei");
+    expect(instants).toHaveTextContent("2 carte");
+    expect(instants).toHaveTextContent("6 copie");
+    const creatures = screen.getByTestId("db-type-main-creatures");
+    expect(creatures).toHaveTextContent("Creature");
+    expect(creatures).toHaveTextContent("Sauron, the Dark Lord");
+    // sideboard pure per tipo
+    expect(screen.getByTestId("db-type-side-instants")).toHaveTextContent("Negate");
+    // ordine dei tipi nel main: Creature prima di Istantanei
+    const order = [
+      ...(screen.getByTestId("db-zone-main").closest("section")?.querySelectorAll('[data-testid^="db-type-main-"]') ?? []),
+    ].map((el) => el.getAttribute("data-testid"));
+    expect(order).toEqual(["db-type-main-creatures", "db-type-main-instants"]);
+  });
+
   it("macro-zone: maybeboard (con considering) e tokens in fondo", () => {
     seed();
     const add = useDeck.getState().add;

@@ -14,6 +14,7 @@ import { useChoosePrint } from "@/hooks/useChoosePrint";
 import { useArtworkSrc } from "@/hooks/useArtwork";
 import { useCardTypes, typeCacheKey } from "@/hooks/useCardTypes";
 import { prettyManaCost } from "@/lib/scryart";
+import { CATEGORY_LABELS, CATEGORY_ORDER, categoryOf } from "@/lib/cardtype";
 import { fetchCommanderIdentity, type CardMeta } from "@/services/cardfinder";
 import { edhrecCardUrl, edhrecCommanderUrl } from "@/lib/edhrec";
 import { openExternal } from "@/lib/external";
@@ -79,6 +80,8 @@ export function DeckBuilderView(): JSX.Element {
       massLandDenial: m?.massLandDenial === true,
     };
   };
+  /** type_line di una voce (sottosezioni per tipo dentro le macro-zone). */
+  const typeOf = (c: CardEntry): string | undefined => metaOf(c).type;
   /** menu contestuale (tasto destro su carta): {id, x, y} o null */
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   /** zoom carta ingrandita (id voce o null) */
@@ -332,6 +335,8 @@ export function DeckBuilderView(): JSX.Element {
       <div className="min-h-0 flex-1 overflow-auto px-5 pb-8">
         {macroSections.map(({ zone, label, cards }) => {
           const copies = cards.reduce((n, c) => n + c.qty, 0);
+          // main e side: sottosezioni per tipo (come prima); maybe/token restano piatti
+          const byType = zone === "main" || zone === "side";
           return (
             <section key={zone} aria-label={label} className="mb-6 last:mb-0">
               <SectionHead
@@ -339,14 +344,55 @@ export function DeckBuilderView(): JSX.Element {
                 tag={label}
                 count={`${cards.length} ${cards.length === 1 ? "carta" : "carte"} · ${copies} copie`}
               />
-              <SectionCards
-                cards={cards}
-                view={view}
-                onPick={(c) => openPicker(c.id, c.name, c.providerId, "entry")}
-                onMenu={(e, c) => openMenu(e, c.id)}
-                onPreview={(c) => setPreviewId(c.id)}
-                metaOf={metaOf}
-              />
+              {byType ? (
+                <div className="space-y-5">
+                  {CATEGORY_ORDER.map((cat) => {
+                    const group = cards.filter((c) => categoryOf(typeOf(c)) === cat);
+                    if (group.length === 0) return null;
+                    const groupCopies = group.reduce((n, c) => n + c.qty, 0);
+                    return (
+                      <div key={cat} data-testid={`db-type-${zone}-${cat}`}>
+                        <div className="mb-2 flex items-center gap-2">
+                          <span className="text-[11px] font-medium text-neutral-300">
+                            {CATEGORY_LABELS[cat]}
+                          </span>
+                          <span className="text-[10px] text-neutral-500">
+                            {group.length} {group.length === 1 ? "carta" : "carte"} · {groupCopies} copie
+                          </span>
+                          {cat === "unknown" && (
+                            <button
+                              type="button"
+                              onClick={typeInfo.retry}
+                              className="text-[10px] text-neutral-400 underline hover:text-neutral-100"
+                              title="Riprova a risolvere i tipi su Scryfall"
+                            >
+                              Riprova tipi
+                            </button>
+                          )}
+                          <span className="h-px flex-1 bg-[#1a1a1a]" aria-hidden="true" />
+                        </div>
+                        <SectionCards
+                          cards={group}
+                          view={view}
+                          onPick={(c) => openPicker(c.id, c.name, c.providerId, "entry")}
+                          onMenu={(e, c) => openMenu(e, c.id)}
+                          onPreview={(c) => setPreviewId(c.id)}
+                          metaOf={metaOf}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <SectionCards
+                  cards={cards}
+                  view={view}
+                  onPick={(c) => openPicker(c.id, c.name, c.providerId, "entry")}
+                  onMenu={(e, c) => openMenu(e, c.id)}
+                  onPreview={(c) => setPreviewId(c.id)}
+                  metaOf={metaOf}
+                />
+              )}
             </section>
           );
         })}
