@@ -116,16 +116,18 @@ describe("DeckBuilder", () => {
     expect(instants).toHaveTextContent("Istantanei");
     expect(instants).toHaveTextContent("2 carte");
     expect(instants).toHaveTextContent("6 copie");
-    const creatures = screen.getByTestId("db-type-main-creatures");
-    expect(creatures).toHaveTextContent("Creature");
-    expect(creatures).toHaveTextContent("Sauron, the Dark Lord");
+    // il comandante resta nel main ma è sempre in cima, fuori dai tipi
+    const commander = screen.getByTestId("db-type-main-commander");
+    expect(commander).toHaveTextContent("Comandante");
+    expect(commander).toHaveTextContent("Sauron, the Dark Lord");
+    expect(screen.queryByTestId("db-type-main-creatures")).toBeNull();
     // sideboard pure per tipo
     expect(screen.getByTestId("db-type-side-instants")).toHaveTextContent("Negate");
-    // ordine dei tipi nel main: Creature prima di Istantanei
+    // ordine: comandante in cima, poi i tipi
     const order = [
       ...(screen.getByTestId("db-zone-main").closest("section")?.querySelectorAll('[data-testid^="db-type-main-"]') ?? []),
     ].map((el) => el.getAttribute("data-testid"));
-    expect(order).toEqual(["db-type-main-creatures", "db-type-main-instants"]);
+    expect(order).toEqual(["db-type-main-commander", "db-type-main-instants"]);
   });
 
   it("macro-zone: maybeboard (con considering) e tokens in fondo", () => {

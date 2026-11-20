@@ -49,7 +49,7 @@ export function CardPreview({
   return (
     <div className="panel-2 thin-border shrink-0 rounded-xl p-3" data-testid="db-card-preview">
       {/* stessa larghezza di una tile della griglia (6 per fila su 1440) */}
-      <div className="relative mx-auto aspect-[63/88] w-[168px] max-w-full overflow-hidden rounded-lg bg-black shadow-[0_10px_26px_rgba(0,0,0,0.55)]">
+      <div className="relative mx-auto aspect-[63/88] w-[184px] max-w-full overflow-hidden rounded-lg bg-black shadow-[0_10px_26px_rgba(0,0,0,0.55)]">
         <ArtworkImage stored={entry.imageFront} name={entry.name} />
         {meta?.gameChanger && (
           <span className="absolute left-1.5 top-1.5">

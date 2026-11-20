@@ -337,6 +337,9 @@ export function DeckBuilderView(): JSX.Element {
           const copies = cards.reduce((n, c) => n + c.qty, 0);
           // main e side: sottosezioni per tipo (come prima); maybe/token restano piatti
           const byType = zone === "main" || zone === "side";
+          // il comandante resta NEL deck ma sempre in cima, fuori dai gruppi per tipo
+          const commanders = byType ? cards.filter((c) => isCommander(c)) : [];
+          const typeCards = byType ? cards.filter((c) => !isCommander(c)) : cards;
           return (
             <section key={zone} aria-label={label} className="mb-6 last:mb-0">
               <SectionHead
@@ -346,8 +349,27 @@ export function DeckBuilderView(): JSX.Element {
               />
               {byType ? (
                 <div className="space-y-5">
+                  {commanders.length > 0 && (
+                    <div data-testid={`db-type-${zone}-commander`}>
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="text-[11px] font-medium text-neutral-300">Comandante</span>
+                        <span className="text-[10px] text-neutral-500">
+                          {commanders.length} {commanders.length === 1 ? "carta" : "carte"}
+                        </span>
+                        <span className="h-px flex-1 bg-[#1a1a1a]" aria-hidden="true" />
+                      </div>
+                      <SectionCards
+                        cards={commanders}
+                        view={view}
+                        onPick={(c) => openPicker(c.id, c.name, c.providerId, "entry")}
+                        onMenu={(e, c) => openMenu(e, c.id)}
+                        onPreview={(c) => setPreviewId(c.id)}
+                        metaOf={metaOf}
+                      />
+                    </div>
+                  )}
                   {CATEGORY_ORDER.map((cat) => {
-                    const group = cards.filter((c) => categoryOf(typeOf(c)) === cat);
+                    const group = typeCards.filter((c) => categoryOf(typeOf(c)) === cat);
                     if (group.length === 0) return null;
                     const groupCopies = group.reduce((n, c) => n + c.qty, 0);
                     return (
@@ -404,7 +426,7 @@ export function DeckBuilderView(): JSX.Element {
           </div>
           {/* isola sticky a destra: anteprima + statistiche */}
           <aside
-            className="flex w-[340px] shrink-0 flex-col gap-3 overflow-y-auto border-l thin-border p-3 2xl:w-[380px]"
+            className="flex w-[340px] shrink-0 flex-col gap-3 overflow-y-auto border-l thin-border p-3 [scrollbar-gutter:stable] 2xl:w-[380px]"
             aria-label="Riepilogo mazzo"
             data-testid="db-rail"
           >
