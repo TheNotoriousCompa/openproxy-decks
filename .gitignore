@@ -1,0 +1,33 @@
+# dipendenze / build
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# ambiente e log
+.env
+.env.*
+*.log
+coverage/
+test-results/
+playwright-report/
+
+# tool standalone non parte dell'app
+/traduttore-pdf/
+
+# sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# agenti / tooling locale
+.opencode/
+context.md
+.notebooklm.json
+session-*.md
+
+# chiavi di firma updater: MAI nel repo
+*.key
+*.pem
+updater.key
+updater.key.pub

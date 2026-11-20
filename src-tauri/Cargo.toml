@@ -1,0 +1,50 @@
+[package]
+name = "openproxy_decks"
+version = "0.1.0"
+description = "Local-first proxy/custom card printing studio"
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "openproxy_decks_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset"] }
+tauri-plugin-fs = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+tokio = { version = "1", features = ["full"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "bmp", "gif"] }
+sha2 = "0.10"
+hex = "0.4"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+zip = { version = "2.2" }
+dirs = "5"
+futures = "0.3"
+thiserror = "1"
+walkdir = "2"
+mime_guess = "2"
+base64 = "0.22"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+url = "2"
+fast_image_resize = { version = "5.1.4", default-features = false, features = ["rayon"] }
+
+[features]
+default = []
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+opt-level = 3

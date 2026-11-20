@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "OpenProxyDecks",
+  "version": "0.1.0",
+  "identifier": "app.openproxy.decks",
+  "build": {
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "OpenProxy & Decks",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1024,
+        "minHeight": 640,
+        "decorations": true,
+        "transparent": false
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": {
+          "allow": ["$APPDATA/ProxyApp/**/*", "$RESOURCE/**/*"]
+        }
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "createUpdaterArtifacts": true,
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico"],
+    "category": "Utility",
+    "shortDescription": "Local-first proxy card studio",
+    "longDescription": "Create, organize, process and print proxy and custom cards. Fully local-first."
+  },
+  "plugins": {
+    "shell": {
+      "open": "^((mailto:\\w+)|(tel:\\w+)|(https?://\\w+)|([A-Za-z]:[\\\\/].+)|(/[A-Za-z0-9].*)).+"
+    },
+    "updater": {
+      "endpoints": [
+        "https://github.com/TheNotoriousCompa/openproxy-decks/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDUwMTNCRENGNzdBRUUzMDQKUldRRTQ2NTN6NzBUVUNOSWIxVjFkVGlFaGExODFHZDJQTGM3YjRtMFgxWXoyWTZtYXRtaWQ1WUcK",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

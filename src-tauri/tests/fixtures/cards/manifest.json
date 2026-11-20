@@ -1,0 +1,65 @@
+[
+ {
+  "file": "00.png",
+  "name": "Brainstorm",
+  "set": "plst",
+  "w": "png",
+  "bytes": 1571376
+ },
+ {
+  "file": "01.png",
+  "name": "Reliquary Tower",
+  "set": "plst",
+  "w": "png",
+  "bytes": 970599
+ },
+ {
+  "file": "02.png",
+  "name": "Countersquall",
+  "set": "uma",
+  "w": "png",
+  "bytes": 1359976
+ },
+ {
+  "file": "03.png",
+  "name": "Dispel",
+  "set": "rtr",
+  "w": "png",
+  "bytes": 1467580
+ },
+ {
+  "file": "04.png",
+  "name": "Victimize",
+  "set": "c14",
+  "w": "png",
+  "bytes": 1883470
+ },
+ {
+  "file": "05.png",
+  "name": "Blasphemous Act",
+  "set": "sld",
+  "w": "png",
+  "bytes": 1073154
+ },
+ {
+  "file": "06.png",
+  "name": "Sulfurous Springs",
+  "set": "dmu",
+  "w": "png",
+  "bytes": 1634561
+ },
+ {
+  "file": "07.png",
+  "name": "Dark Ritual",
+  "set": "plst",
+  "w": "png",
+  "bytes": 1596287
+ },
+ {
+  "file": "08.png",
+  "name": "Ensnaring Bridge",
+  "set": "ltc",
+  "w": "png",
+  "bytes": 751730
+ }
+]

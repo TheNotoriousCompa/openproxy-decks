@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: #000;
+  color: #e8e8e8;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* focus visibile per accessibilità */
+:focus-visible {
+  outline: 2px solid #e8e8e8;
+  outline-offset: 1px;
+}
+
+.panel {
+  background: #0a0a0a;
+}
+
+.panel-2 {
+  background: #111111;
+}
+
+.thin-border {
+  border: 1px solid #262626;
+}
+
+/* Spinner pixel-art 3x3: un punto orbita attorno al centro (steps duri, niente fade). */
+.px-spinner {
+  display: grid;
+  grid-template-columns: repeat(3, 12px);
+  gap: 4px;
+  image-rendering: pixelated;
+}
+.px-spinner > span {
+  width: 12px;
+  height: 12px;
+  background: #2a2a2a;
+}
+.px-spinner > .px-dot {
+  animation: px-orbit 0.8s steps(1) infinite;
+}
+.px-spinner > .px-center {
+  background: #3a3a3a;
+  animation: none;
+}
+@keyframes px-orbit {
+  0% { background: #ffffff; }
+  12.5% { background: #2a2a2a; }
+  100% { background: #2a2a2a; }
+}
+
+/* Barra indeterminata del modal PDF (scorre a loop, steps duri). */
+.px-bar {
+  width: 192px;
+  height: 10px;
+  background: #2a2a2a;
+  overflow: hidden;
+}
+.px-bar-fill {
+  width: 48px;
+  height: 10px;
+  background: #e8e8e8;
+  animation: px-slide 1s steps(12) infinite;
+}
+@keyframes px-slide {
+  from { transform: translateX(-48px); }
+  to { transform: translateX(192px); }
+}
+
+/* Riempimento determinato (avanzamento reale, scatti pixel). */
+.px-bar-fill-det {
+  height: 10px;
+  background: #e8e8e8;
+  transition: width 0.15s steps(3);
+}
+
+/* Variante compatta della barra (toast di cambio stampa). */
+.px-bar-sm {
+  width: 130px;
+  height: 8px;
+}
+.px-bar-sm .px-bar-fill {
+  width: 32px;
+  height: 8px;
+  animation: px-slide-sm 1s steps(8) infinite;
+}
+@keyframes px-slide-sm {
+  from { transform: translateX(-32px); }
+  to { transform: translateX(130px); }
+}
+
+/* Spunta pixel del "fatto". */
+.px-done {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: #1f7a1f;
+  color: #eaffe8;
+  font-weight: 700;
+  font-size: 14px;
+  image-rendering: pixelated;
+}

@@ -1,0 +1,28 @@
+Proxxied env backup - 2026-09-03 23:26:21
+HKCU:\Environment
+
+CFLAGS = -Wall -Wextra -Werror -pedantic -std=c11
+CXXFLAGS = <assente>
+CC = <assente>
+CXX = <assente>
+INCLUDE = <assente>
+LIB = <assente>
+VSINSTALLDIR = <assente>
+VCINSTALLDIR = <assente>
+
+Process env (sessione corrente al momento del backup):
+CFLAGS = -Wall -Wextra -Werror -pedantic -std=c11
+CXXFLAGS = <assente>
+CC = <assente>
+CXX = <assente>
+INCLUDE = <assente>
+LIB = <assente>
+VSINSTALLDIR = <assente>
+VCINSTALLDIR = <assente>
+
+Motivo: CFLAGS con flag gcc (-Wall -Wextra -Werror -pedantic -std=c11) veniva
+passato dai crate -sys (cc-rs) a cl.exe di MSVC -> D8021, exit code 2.
+Rimosso da HKCU:\Environment il 2026-09-03 (fix permanente toolchain Rust/MSVC).
+
+Ripristino (se mai servisse per build gcc/msys2):
+  setx CFLAGS "-Wall -Wextra -Werror -pedantic -std=c11"
