@@ -1,7 +1,17 @@
-# FEATURES
+# FEATURES — OpenProxy & Decks
 
 UI: sfondo nero, pannelli `#0A0A0A`/`#111111`, bordi `#262626`, testo chiaro,
 unica accent (neutro chiaro). Niente gradienti/glass/neon/animazioni. Desktop-first.
+
+## Aggiornamenti firmati (auto-updater)
+
+Controllo all'avvio (silenzioso, solo app desktop) + striscia discreta sotto la
+TopBar quando c'è una versione nuova: **Aggiorna** (download con progresso,
+installazione, **Riavvia**) o **Più tardi**. Sezione **Impostazioni →
+Aggiornamenti**: versione corrente, controllo manuale, note della release.
+Endpoint: GitHub Releases (`latest.json`), update firmati con chiave minisign
+(la privata vive solo nei secret GitHub). Release automatica su tag `v*`
+(GitHub Actions, Windows NSIS). Vedi `RELEASING.md`.
 
 ## Projects
 
