@@ -4,6 +4,7 @@
   "version": "0.2.0",
   "type": "module",
   "description": "OpenProxy & Decks — local-first desktop app for proxy/custom card creation, organization, processing and printing",
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

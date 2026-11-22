@@ -2,6 +2,7 @@
 name = "openproxy_decks"
 version = "0.2.0"
 description = "Local-first proxy/custom card printing studio"
+license = "MIT"
 edition = "2021"
 rust-version = "1.77"
 

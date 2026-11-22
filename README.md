@@ -53,6 +53,6 @@ push del tag → GitHub Actions compila, firma e pubblica installer +
 
 ## Licenza
 
-Nessuna licenza ancora scelta: tutti i diritti riservati. Se vuoi pubblicarlo
-come open source, aggiungi un file `LICENSE` (MIT/Apache-2.0 sono le scelte
-tipiche per progetti Tauri).
+**MIT** — vedi [`LICENSE`](LICENSE). Copyright (c) 2026 TheNotoriousCompa.
+Puoi usare, modificare, distribuire e vendere il software, mantenendo il
+copyright e la nota di licenza.
