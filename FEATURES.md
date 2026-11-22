@@ -37,7 +37,9 @@ sotto il mouse (artwork, costo, tipo, testo oracolo on-demand, prezzo, badge
 Game Changer) e le **statistiche compatte** (curva di mana, colori, terre,
 CMC medio, prezzo, bracket Commander con scala 1–5). Ricerca carte,
 **Consigliati EDHREC** e Sintassi vivono in una **scheda separata** ("Cerca"),
-non più aperta di default e non a fianco del mazzo.
+non più aperta di default e non a fianco del mazzo: risultati a **4 colonne**
+con l'**anteprima grande nell'isola a destra** (artwork, tipo, testo oracolo,
+prezzo), come nel DeckBuilder.
 **Board Token ripulito**: Moxfield ci aggancia anche i token-copia come carte
 vere («The One Ring», «Glorious Gale»…): all'apertura del progetto le voci non
 token (layout token/emblem o set di soli token) vengono tolte dal mazzo — una

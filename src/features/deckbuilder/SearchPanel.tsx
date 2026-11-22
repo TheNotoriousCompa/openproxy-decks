@@ -30,7 +30,13 @@ export interface ActiveSearch {
  * power/toughness/loyalty/rarità/ordinamento). I Consigliati sono la Top 100
  * per rank EDHREC nei colori del comandante, terre in fondo.
  */
-export function SearchPanel({ standalone = false }: { standalone?: boolean } = {}): JSX.Element {
+export function SearchPanel({
+  standalone = false,
+  onHover,
+}: {
+  standalone?: boolean;
+  onHover?: (hit: SearchHit) => void;
+} = {}): JSX.Element {
   const [activeTab, setActiveTab] = useState<"recs" | "results" | "syntax">("results");
   const [quick, setQuick] = useState("");
   const [search, setSearch] = useState<ActiveSearch | null>(null);
@@ -124,11 +130,11 @@ export function SearchPanel({ standalone = false }: { standalone?: boolean } = {
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-4 pt-3">
         {activeTab === "recs" ? (
-          <RecsTab />
+          <RecsTab large={standalone} onHover={onHover} />
         ) : activeTab === "syntax" ? (
           <SyntaxTab />
         ) : (
-          <ResultsTab search={search} />
+          <ResultsTab search={search} large={standalone} onHover={onHover} />
         )}
       </div>
       {advOpen && (
@@ -264,32 +270,59 @@ function ResultsGrid({
   total,
   hasMore,
   emptyHint,
+  large = false,
+  onHover,
 }: {
   hits: SearchHit[];
   total: number;
   hasMore: boolean;
   emptyHint: string;
+  /** sezione Cerca a tutta pagina: 4 colonne e preview nell'isola a destra */
+  large?: boolean;
+  onHover?: (hit: SearchHit) => void;
 }): JSX.Element {
   const { add, justAdded } = useQuickAdd();
   const [hoverId, setHoverId] = useState<string | null>(null);
   const hovered = hits.find((h) => h.id === hoverId) ?? hits[0] ?? null;
+  const firstId = hits[0]?.id;
+  // nella scheda Cerca mostra subito il primo risultato nell'isola a destra
+  useEffect(() => {
+    if (large && hits[0]) onHover?.(hits[0]);
+  }, [firstId, large, onHover, hits]);
   if (hits.length === 0) return <p className="text-xs text-neutral-400">{emptyHint}</p>;
   return (
     <div>
-      <HitPreview hit={hovered} />
+      {!large && <HitPreview hit={hovered} />}
       <p className="mb-2.5 text-[11px] text-neutral-400" aria-live="polite">
         {total > 0 ? `${total} risultati` : `${hits.length} carte`}{hasMore ? " — primi per rank" : ""}
       </p>
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className={large ? "grid grid-cols-4 gap-3" : "grid grid-cols-2 gap-2.5"}>
         {hits.map((h) => (
-          <HitTile key={h.id} hit={h} onHover={() => setHoverId(h.id)} added={justAdded === h.id} onAdd={() => add(h)} />
+          <HitTile
+            key={h.id}
+            hit={h}
+            onHover={() => {
+              setHoverId(h.id);
+              onHover?.(h);
+            }}
+            added={justAdded === h.id}
+            onAdd={() => add(h)}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function ResultsTab({ search }: { search: ActiveSearch | null }): JSX.Element {
+function ResultsTab({
+  search,
+  large,
+  onHover,
+}: {
+  search: ActiveSearch | null;
+  large?: boolean;
+  onHover?: (hit: SearchHit) => void;
+}): JSX.Element {
   const result = useQuery({
     queryKey: ["cardfinder", search?.q ?? "", search?.order ?? "", search?.dir ?? ""],
     queryFn: ({ signal }) =>
@@ -319,11 +352,19 @@ function ResultsTab({ search }: { search: ActiveSearch | null }): JSX.Element {
       total={result.data?.total ?? 0}
       hasMore={result.data?.hasMore ?? false}
       emptyHint="Nessun risultato con questi filtri."
+      large={large}
+      onHover={onHover}
     />
   );
 }
 
-function RecsTab(): JSX.Element {
+function RecsTab({
+  large,
+  onHover,
+}: {
+  large?: boolean;
+  onHover?: (hit: SearchHit) => void;
+}): JSX.Element {
   const deck = useDeck((s) => s.deck);
   const commander = deck.find((c) => isCommander(c)) ?? null;
   const exclude = new Set(deck.map((c) => c.name.trim().toLowerCase()));
@@ -381,6 +422,8 @@ function RecsTab(): JSX.Element {
           total={recs.data.length}
           hasMore={false}
           emptyHint="Nessun consigliato fuori dalla tua lista."
+          large={large}
+          onHover={onHover}
         />
       )}
     </div>

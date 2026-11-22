@@ -15,7 +15,7 @@ import { useArtworkSrc } from "@/hooks/useArtwork";
 import { useCardTypes, typeCacheKey } from "@/hooks/useCardTypes";
 import { prettyManaCost } from "@/lib/scryart";
 import { CATEGORY_LABELS, CATEGORY_ORDER, categoryOf } from "@/lib/cardtype";
-import { fetchCommanderIdentity, type CardMeta } from "@/services/cardfinder";
+import { fetchCommanderIdentity, type CardMeta, type SearchHit } from "@/services/cardfinder";
 import { edhrecCardUrl, edhrecCommanderUrl } from "@/lib/edhrec";
 import { openExternal } from "@/lib/external";
 import { ZONE_ORDER, deckMacroZone, DECK_MACRO_ORDER, DECK_MACRO_LABELS } from "@/features/print/printModel";
@@ -27,6 +27,34 @@ import { deckEntryToItem, itemKey, mergeAdd, consolidateItems } from "@/lib/coll
 import { ZONE_LABELS, type CardEntry, type Zone } from "@/types";
 
 type SortKey = "order" | "name" | "qty";
+
+/** Risultato Scryfall → voce fittizia per l'anteprima (solo display). */
+function hitAsEntry(h: SearchHit): CardEntry {
+  return {
+    id: h.id,
+    name: h.name,
+    qty: 1,
+    zone: "main",
+    provider: "scryfall",
+    providerId: h.id,
+    setCode: h.setCode,
+    collectorNumber: h.collectorNumber,
+    imageFront: h.imageLarge ?? h.thumb,
+    hasBack: h.hasBack,
+    sortOrder: 0,
+  };
+}
+
+/** Meta nota dal risultato di ricerca, senza risolvere di nuovo la carta. */
+function hitAsMeta(h: SearchHit): CardMeta {
+  return {
+    typeLine: h.typeLine,
+    manaCost: h.manaCost,
+    cmc: h.cmc,
+    priceUsd: h.priceUsd,
+    colorIdentity: h.colorIdentity,
+  };
+}
 
 /**
  * DeckBuilder: la stessa lista dello Studio vista come mazzo (stile
@@ -48,6 +76,8 @@ export function DeckBuilderView(): JSX.Element {
   const [mode, setMode] = useState<"deck" | "search">("deck");
   /** carta mostrata nell'anteprima grande (hover); resta sull'ultima vista */
   const [previewId, setPreviewId] = useState<string | null>(null);
+  /** risultato di ricerca sotto il mouse nella scheda Cerca (preview a destra) */
+  const [searchHit, setSearchHit] = useState<SearchHit | null>(null);
   /** type_line Scryfall per voce (ID → nome+set → esatto → fuzzy, cache persistente) */
   const typeInfo = useCardTypes(
     deck.map((c) => ({ name: c.name, provider: c.provider, providerId: c.providerId, setCode: c.setCode })),
@@ -312,8 +342,21 @@ export function DeckBuilderView(): JSX.Element {
       </div>
 
       {mode === "search" ? (
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <SearchPanel standalone />
+        <div className="flex min-h-0 flex-1">
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <SearchPanel standalone onHover={setSearchHit} />
+          </div>
+          <aside
+            className="flex w-[340px] shrink-0 flex-col gap-3 overflow-y-auto border-l thin-border p-3 [scrollbar-gutter:stable] 2xl:w-[380px]"
+            aria-label="Anteprima ricerca"
+            data-testid="db-search-preview"
+          >
+            <CardPreview
+              entry={searchHit ? hitAsEntry(searchHit) : null}
+              meta={searchHit ? hitAsMeta(searchHit) : undefined}
+              hideQty
+            />
+          </aside>
         </div>
       ) : (
         <div className="flex min-h-0 flex-1">

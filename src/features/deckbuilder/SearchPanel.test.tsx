@@ -96,11 +96,21 @@ describe("SearchPanel", () => {
     expect(added?.qty).toBe(1);
   });
 
-  it("standalone: occupa tutta la larghezza", () => {
+  it("standalone: tutta la larghezza, 4 colonne e hover per l'anteprima", async () => {
     seedCommander();
-    render(<SearchPanel standalone />, { wrapper });
+    const onHover = vi.fn();
+    render(<SearchPanel standalone onHover={onHover} />, { wrapper });
     expect(screen.getByTestId("search-panel").className).toContain("w-full");
     expect(screen.getByTestId("search-panel").className).not.toContain("w-80");
+
+    fireEvent.change(screen.getByTestId("cf-text"), { target: { value: "dragon" } });
+    fireEvent.click(screen.getByTestId("cf-search"));
+    const tile = await screen.findByTestId("hit-x1", {}, { timeout: 4000 });
+    expect(tile.closest(".grid")?.className).toContain("grid-cols-4");
+    fireEvent.mouseEnter(tile.querySelector("button") as HTMLElement);
+    expect(onHover).toHaveBeenCalledWith(expect.objectContaining({ id: "x1", name: "Dragon A" }));
+    // niente preview inline: ci pensa l'isola a destra
+    expect(screen.queryByTestId("hit-preview")).toBeNull();
   });
 
   it("barra rapida: invio cerca e mostra risultati", async () => {

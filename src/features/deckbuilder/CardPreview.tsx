@@ -17,10 +17,13 @@ export function CardPreview({
   entry,
   meta,
   zoneLabel,
+  hideQty = false,
 }: {
   entry: CardEntry | null;
   meta?: CardMeta;
   zoneLabel?: string;
+  /** true nei risultati di ricerca (non è una voce del mazzo) */
+  hideQty?: boolean;
 }): JSX.Element {
   const debounced = useDebounced(entry, 140);
   const details = useCardDetails(debounced ? refOf(debounced) : null);
@@ -81,9 +84,11 @@ export function CardPreview({
           {oracle ?? (details === undefined ? "…" : "Testo non disponibile (offline).")}
         </p>
         <p className="mt-2 flex flex-wrap gap-x-2 text-[10px] text-neutral-500">
-          <span>
-            {entry.qty}× {entry.qty === 1 ? "copia" : "copie"}
-          </span>
+          {!hideQty && (
+            <span>
+              {entry.qty}× {entry.qty === 1 ? "copia" : "copie"}
+            </span>
+          )}
           {(entry.setCode || entry.collectorNumber) && (
             <span>{[entry.setCode?.toUpperCase(), entry.collectorNumber].filter(Boolean).join(" ")}</span>
           )}

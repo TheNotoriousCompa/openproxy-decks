@@ -227,13 +227,16 @@ describe("DeckBuilder", () => {
     expect(screen.getByTestId("db-preview-type").textContent?.trim().length).toBeGreaterThan(0);
   });
 
-  it("tab Cerca: pannello ricerca a tutta larghezza, si torna al mazzo", () => {
+  it("tab Cerca: risultati a sinistra, anteprima nell'isola a destra", () => {
     seed();
     render(<DeckBuilderView />, { wrapper });
     expect(screen.getByTestId("db-mode-deck")).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByTestId("db-mode-search"));
     expect(screen.getByTestId("search-panel").className).toContain("w-full");
-    expect(screen.queryByTestId("db-card-preview")).toBeNull();
+    // isola a destra con l'anteprima (vuota finché non passi su un risultato)
+    expect(screen.getByTestId("db-search-preview")).toContainElement(
+      screen.getByTestId("db-card-preview"),
+    );
     expect(screen.queryByTestId("db-card-db-1")).toBeNull();
     fireEvent.click(screen.getByTestId("db-mode-deck"));
     expect(screen.getByTestId("db-card-db-1")).toBeInTheDocument();

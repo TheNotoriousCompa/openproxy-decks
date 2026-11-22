@@ -19,6 +19,7 @@ const searchHitSchema = z.object({
   collector_number: z.string().optional(),
   rarity: z.string().optional(),
   cmc: z.number().optional(),
+  mana_cost: z.string().optional(),
   type_line: z.string().optional(),
   oracle_text: z.string().optional(),
   colors: z.array(z.string()).optional(),
@@ -39,6 +40,7 @@ const searchHitSchema = z.object({
         name: z.string().optional(),
         type_line: z.string().optional(),
         oracle_text: z.string().optional(),
+        mana_cost: z.string().optional(),
         colors: z.array(z.string()).optional(),
         image_uris: z
           .object({
@@ -61,6 +63,7 @@ export interface SearchHit {
   collectorNumber: string;
   rarity?: string;
   cmc?: number;
+  manaCost?: string;
   typeLine: string;
   oracleText?: string;
   colorIdentity: string[];
@@ -89,6 +92,7 @@ function toHit(raw: unknown): SearchHit | null {
     collectorNumber: c.collector_number ?? "",
     rarity: c.rarity,
     cmc: c.cmc,
+    manaCost: c.mana_cost ?? face0?.mana_cost ?? undefined,
     typeLine: c.type_line ?? face0?.type_line ?? "",
     oracleText: c.oracle_text ?? face0?.oracle_text,
     colorIdentity: identity,
