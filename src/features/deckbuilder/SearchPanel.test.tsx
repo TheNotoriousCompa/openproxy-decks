@@ -113,6 +113,24 @@ describe("SearchPanel", () => {
     expect(screen.queryByTestId("hit-preview")).toBeNull();
   });
 
+  it("il + apre il menu zone e aggiunge dove scegli", async () => {
+    seedCommander();
+    render(<SearchPanel standalone />, { wrapper });
+    fireEvent.change(screen.getByTestId("cf-text"), { target: { value: "dragon" } });
+    fireEvent.click(screen.getByTestId("cf-search"));
+    const tile = await screen.findByTestId("hit-x1", {}, { timeout: 4000 });
+    fireEvent.click(tile.querySelector('[data-testid="hit-add-menu-x1"]') as HTMLElement);
+    expect(screen.getByTestId("hit-add-menu")).toBeInTheDocument();
+    // le zone offerte seguono quelle del deck
+    expect(screen.getByTestId("hit-add-zone-main")).toHaveTextContent("Main Deck");
+    expect(screen.getByTestId("hit-add-zone-side")).toHaveTextContent("Sideboard");
+    expect(screen.getByTestId("hit-add-zone-commander")).toHaveTextContent("Commander");
+    fireEvent.click(screen.getByTestId("hit-add-zone-side"));
+    const added = useDeck.getState().deck.find((c) => c.name === "Dragon A");
+    expect(added?.zone).toBe("side");
+    expect(screen.queryByTestId("hit-add-menu")).toBeNull();
+  });
+
   it("barra rapida: invio cerca e mostra risultati", async () => {
     seedCommander();
     render(<SearchPanel />, { wrapper });

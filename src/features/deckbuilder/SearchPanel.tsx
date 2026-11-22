@@ -16,6 +16,7 @@ import {
   type SearchOrder,
 } from "@/services/cardfinder";
 import { isCommander, useDeck } from "@/stores/deck";
+import { ZONE_LABELS, type Zone } from "@/types";
 
 export interface ActiveSearch {
   q: string;
@@ -151,16 +152,16 @@ export function SearchPanel({
   );
 }
 
-/** Aggiunta rapida alla lista (zona main, stampa Scryfall a risoluzione piena). */
-function useQuickAdd(): { add: (hit: SearchHit) => void; justAdded: string | null } {
+/** Aggiunta rapida alla lista (zona scelta, stampa Scryfall a risoluzione piena). */
+function useQuickAdd(): { add: (hit: SearchHit, zone?: Zone) => void; justAdded: string | null } {
   const [justAdded, setJustAdded] = useState<string | null>(null);
   return {
     justAdded,
-    add: (hit) => {
+    add: (hit, zone = "main") => {
       useDeck.getState().add({
         name: hit.name,
         qty: 1,
-        zone: "main",
+        zone,
         provider: "scryfall",
         providerId: hit.id,
         setCode: hit.setCode,
@@ -177,53 +178,131 @@ function useQuickAdd(): { add: (hit: SearchHit) => void; justAdded: string | nul
   };
 }
 
-/** Tile risultato: artwork, rank, prezzo, quick-add; hover = preview. */
+/** Zone in cui puoi aggiungere un risultato, nell'ordine del deck. */
+const ADD_ZONES: Zone[] = ["main", "side", "commander", "maybe", "tokens", "extra", "considering", "custom"];
+
+/** Menu contestuale del "+": scelta della zona di destinazione. */
+function ZoneAddMenu({
+  name,
+  x,
+  y,
+  onPick,
+  onClose,
+}: {
+  name: string;
+  x: number;
+  y: number;
+  onPick: (zone: Zone) => void;
+  onClose: () => void;
+}): JSX.Element {
+  const left = Math.max(4, Math.min(x, window.innerWidth - 184));
+  const top = Math.max(4, Math.min(y, window.innerHeight - 300));
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const item = "block w-full rounded px-2 py-1.5 text-left text-xs text-neutral-200 hover:bg-neutral-800";
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden="true" />
+      <div
+        role="menu"
+        aria-label={`Aggiungi ${name} a…`}
+        data-testid="hit-add-menu"
+        className="panel-2 thin-border fixed z-50 w-44 rounded p-1 shadow-xl"
+        style={{ left, top }}
+      >
+        <p className="truncate px-2 py-1 text-[11px] font-bold text-neutral-400">Aggiungi a…</p>
+        {ADD_ZONES.map((z) => (
+          <button
+            key={z}
+            type="button"
+            role="menuitem"
+            onClick={() => onPick(z)}
+            data-testid={`hit-add-zone-${z}`}
+            className={item}
+          >
+            {ZONE_LABELS[z]}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/** Tile risultato: artwork, rank, prezzo, quick-add; il + sceglie la zona. */
 function HitTile({
   hit,
   onHover,
-  added,
   onAdd,
+  onAddMenu,
+  added,
 }: {
   hit: SearchHit;
   onHover: () => void;
-  added: boolean;
   onAdd: () => void;
+  onAddMenu: (e: React.MouseEvent) => void;
+  added: boolean;
 }): JSX.Element {
   return (
     <div className="overflow-hidden rounded-lg thin-border panel" data-testid={`hit-${hit.id}`}>
-      <button
-        type="button"
-        onMouseEnter={onHover}
-        onFocus={onHover}
-        onClick={onAdd}
-        aria-label={`Aggiungi ${hit.name} alla lista`}
-        title={`${hit.name} — clic per aggiungere`}
-        className="group relative block aspect-[63/88] w-full bg-black"
-      >
-        <ArtworkImage stored={hit.imageLarge ?? hit.thumb} name={hit.name} />
-        {/* overlay arancione su hover con invito */}
-        <span
-          aria-hidden="true"
-          className="absolute inset-0 bg-neutral-200/0 transition-colors duration-150 group-hover:bg-neutral-200/20"
-        />
-        <span
-          aria-hidden="true"
-          className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+      <div className="relative">
+        <button
+          type="button"
+          onMouseEnter={onHover}
+          onFocus={onHover}
+          onClick={onAdd}
+          aria-label={`Aggiungi ${hit.name} alla lista`}
+          title={`${hit.name} — clic per aggiungere al Main`}
+          className="group relative block aspect-[63/88] w-full bg-black"
         >
-          <span className="rounded-full bg-neutral-200 px-3 py-1 text-sm font-bold text-black shadow-lg">+</span>
-        </span>
-        {hit.edhrecRank !== undefined && (
+          <ArtworkImage stored={hit.imageLarge ?? hit.thumb} name={hit.name} />
+          {/* overlay su hover con invito */}
           <span
-            className="absolute left-1 top-1 rounded bg-black/80 px-1 py-px text-[10px] font-bold text-amber-300"
-            title={`Rank EDHREC #${hit.edhrecRank}`}
+            aria-hidden="true"
+            className="absolute inset-0 bg-neutral-200/0 transition-colors duration-150 group-hover:bg-neutral-200/20"
+          />
+          <span
+            aria-hidden="true"
+            className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100"
           >
-            #{hit.edhrecRank}
+            <span className="rounded-full bg-neutral-200 px-3 py-1 text-sm font-bold text-black shadow-lg">+</span>
+          </span>
+          {hit.edhrecRank !== undefined && (
+            <span
+              className="absolute left-1 top-1 rounded bg-black/80 px-1 py-px text-[10px] font-bold text-amber-300"
+              title={`Rank EDHREC #${hit.edhrecRank}`}
+            >
+              #{hit.edhrecRank}
+            </span>
+          )}
+        </button>
+        {/* + separato: apre il menu delle zone (il click sull'arte resta quick-add) */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAddMenu(e);
+          }}
+          aria-label={`Scegli dove aggiungere ${hit.name}`}
+          title="Aggiungi a…"
+          data-testid={`hit-add-menu-${hit.id}`}
+          className="absolute bottom-1 right-1 z-10 rounded bg-neutral-200 px-1.5 py-px text-[11px] font-bold text-black hover:bg-white"
+        >
+          +
+        </button>
+        {added && (
+          <span
+            aria-hidden="true"
+            className="absolute right-1 top-1 rounded bg-green-700 px-1 py-px text-[10px] font-bold text-white"
+          >
+            ✓
           </span>
         )}
-        <span className="absolute bottom-1 right-1 rounded bg-neutral-200 px-1.5 py-px text-[11px] font-bold text-black">
-          {added ? "✓" : "+"}
-        </span>
-      </button>
+      </div>
       <div className="px-2 py-[7px]">
         <p className="truncate text-[11px] font-semibold" title={hit.name}>{hit.name}</p>
         <p className="truncate text-[9px] text-neutral-400">
@@ -283,6 +362,7 @@ function ResultsGrid({
 }): JSX.Element {
   const { add, justAdded } = useQuickAdd();
   const [hoverId, setHoverId] = useState<string | null>(null);
+  const [addMenu, setAddMenu] = useState<{ hit: SearchHit; x: number; y: number } | null>(null);
   const hovered = hits.find((h) => h.id === hoverId) ?? hits[0] ?? null;
   const firstId = hits[0]?.id;
   // nella scheda Cerca mostra subito il primo risultato nell'isola a destra
@@ -307,9 +387,22 @@ function ResultsGrid({
             }}
             added={justAdded === h.id}
             onAdd={() => add(h)}
+            onAddMenu={(e) => setAddMenu({ hit: h, x: e.clientX, y: e.clientY })}
           />
         ))}
       </div>
+      {addMenu && (
+        <ZoneAddMenu
+          name={addMenu.hit.name}
+          x={addMenu.x}
+          y={addMenu.y}
+          onPick={(zone) => {
+            add(addMenu.hit, zone);
+            setAddMenu(null);
+          }}
+          onClose={() => setAddMenu(null)}
+        />
+      )}
     </div>
   );
 }
