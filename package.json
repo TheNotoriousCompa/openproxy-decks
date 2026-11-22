@@ -1,7 +1,7 @@
 {
   "name": "openproxy-decks",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "OpenProxy & Decks — local-first desktop app for proxy/custom card creation, organization, processing and printing",
   "scripts": {
