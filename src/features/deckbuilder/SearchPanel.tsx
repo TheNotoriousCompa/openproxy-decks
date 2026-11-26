@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArtworkImage } from "@/components/ArtworkImage";
 import { openExternal } from "@/lib/external";
 import { edhrecCommanderUrl } from "@/lib/edhrec";
+import { isMassLandDenial, computeBracket, BRACKET_LABEL } from "@/lib/bracket";
+import { findMeta } from "@/lib/cardmetaCache";
+import { useCardMeta } from "@/hooks/useCardTypes";
 import {
   buildSearchQuery,
   EMPTY_FILTERS,
@@ -461,6 +464,29 @@ function RecsTab({
   const deck = useDeck((s) => s.deck);
   const commander = deck.find((c) => isCommander(c)) ?? null;
   const exclude = new Set(deck.map((c) => c.name.trim().toLowerCase()));
+  const [bracketSafe, setBracketSafe] = useState(false);
+
+  /** Bracket del mazzo (main + comandante) per filtrare i consigliati. */
+  const deckMeta = useCardMeta(
+    deck.map((c) => ({ name: c.name, provider: c.provider, providerId: c.providerId, setCode: c.setCode })),
+  ).meta;
+  const bracket = useMemo(
+    () =>
+      computeBracket(
+        deck
+          .filter((c) => c.zone === "main" || c.zone === "commander")
+          .map((c) => {
+            const m = findMeta(deckMeta, {
+              name: c.name,
+              provider: c.provider,
+              providerId: c.providerId,
+              setCode: c.setCode,
+            });
+            return { name: c.name, qty: c.qty, gameChanger: m?.gameChanger, massLandDenial: m?.massLandDenial };
+          }),
+      ),
+    [deck, deckMeta],
+  );
 
   const identity = useQuery({
     queryKey: ["commander-identity", commander?.name ?? ""],
@@ -477,6 +503,18 @@ function RecsTab({
     staleTime: 10 * 60 * 1000,
     retry: 1,
   });
+
+  const hiddenGc = recs.data?.filter((h) => h.gameChanger).length ?? 0;
+  const hiddenMld = recs.data?.filter((h) => isMassLandDenial(h.name, h.oracleText)).length ?? 0;
+  const shown = useMemo(() => {
+    if (!recs.data) return undefined;
+    if (!bracketSafe) return recs.data;
+    // "dentro il bracket": niente Game Changer; mass land denial solo se il mazzo è sotto il B4
+    return recs.data.filter(
+      (h) => !h.gameChanger && (bracket.bracket >= 4 || !isMassLandDenial(h.name, h.oracleText)),
+    );
+  }, [recs.data, bracketSafe, bracket.bracket]);
+  const hidden = recs.data && shown ? recs.data.length - shown.length : 0;
 
   if (!commander) {
     return (
@@ -503,18 +541,48 @@ function RecsTab({
           Pagina EDHREC completa ↗
         </button>
       </p>
+
+      <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg panel-2 thin-border px-2 py-1.5">
+        <label
+          className="flex cursor-pointer items-center gap-1.5 text-[11px] text-neutral-200"
+          title="Esclude le Game Changer e, sotto il Bracket 4, il mass land denial. Le combo a 2 carte non sono rilevabili dai metadati."
+        >
+          <input
+            type="checkbox"
+            checked={bracketSafe}
+            onChange={(e) => setBracketSafe(e.target.checked)}
+            data-testid="recs-bracket-safe"
+          />
+          Solo carte dentro il bracket
+        </label>
+        <span className="text-[10px] text-neutral-400">
+          {BRACKET_LABEL[bracket.bracket]} ·{" "}
+          {hiddenGc > 0 ? `${hiddenGc} Game Changer nella lista` : "nessuna Game Changer nella lista"}
+          {bracket.bracket < 4 && hiddenMld > 0 ? ` · ${hiddenMld} mass land denial` : ""}
+        </span>
+      </div>
+      {bracketSafe && hidden > 0 && (
+        <p className="mb-2 text-[10px] text-neutral-500" data-testid="recs-bracket-hidden">
+          {hidden} {hidden === 1 ? "carta nascosta" : "carte nascoste"} dal filtro bracket.
+        </p>
+      )}
+
       {identity.isLoading && <p className="text-xs text-neutral-400">Comandante…</p>}
       {identity.data === null && (
         <p className="text-xs text-yellow-400">Comandante non trovato su Scryfall — consigliati non disponibili.</p>
       )}
       {recs.isLoading && <p className="text-xs text-neutral-400">Carico consigliati…</p>}
       {recs.isError && <p className="text-xs text-red-400">Consigliati non disponibili — riprova.</p>}
-      {recs.data && (
+      {shown && (
         <ResultsGrid
-          hits={recs.data}
-          total={recs.data.length}
+          hits={shown}
+          total={shown.length}
           hasMore={false}
-          emptyHint="Nessun consigliato fuori dalla tua lista."
+          emptyHint={
+            bracketSafe
+              ? "Nessun consigliato dentro il bracket: togli il filtro per vedere la lista completa."
+              : "Nessun consigliato fuori dalla tua lista."
+          }
           large={large}
           onHover={onHover}
         />

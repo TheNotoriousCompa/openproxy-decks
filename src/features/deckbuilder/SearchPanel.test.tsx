@@ -10,7 +10,7 @@ function wrapper({ children }: { children: ReactNode }): JSX.Element {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
-function hit(id: string, name: string, identity: string[] = ["R"], typeLine = "Creature") {
+function hit(id: string, name: string, identity: string[] = ["R"], typeLine = "Creature", gameChanger = false) {
   return {
     id,
     name,
@@ -20,6 +20,7 @@ function hit(id: string, name: string, identity: string[] = ["R"], typeLine = "C
     rarity: "rare",
     cmc: 2,
     type_line: typeLine,
+    game_changer: gameChanger,
     colors: identity,
     color_identity: identity,
     edhrec_rank: 100,
@@ -41,7 +42,7 @@ function mockFetch(): void {
         json: async () => ({
           data: [
             hit("x1", "Dragon A", ["R"]),
-            hit("x2", "Elf B", ["G"]),
+            hit("x2", "Elf B", ["G"], "Creature", true),
             hit("x3", "Zombie C", ["B"]),
             hit("x4", "Plains D", ["W"], "Basic Land — Plains"),
           ],
@@ -94,6 +95,21 @@ describe("SearchPanel", () => {
     expect(added).toBeDefined();
     expect(added?.zone).toBe("main");
     expect(added?.qty).toBe(1);
+  });
+
+  it("consigliati: filtro 'dentro il bracket' nasconde le Game Changer", async () => {
+    seedCommander();
+    render(<SearchPanel standalone />, { wrapper });
+    fireEvent.click(screen.getByRole("tab", { name: "Consigliati" }));
+    // senza filtro: la Game Changer Elf B è visibile
+    expect(await screen.findByTestId("hit-x2", {}, { timeout: 3000 })).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("recs-bracket-safe"));
+    expect(screen.queryByTestId("hit-x2")).toBeNull();
+    expect(screen.getByTestId("hit-x1")).toBeInTheDocument();
+    expect(screen.getByTestId("recs-bracket-hidden")).toHaveTextContent("1 carta nascosta");
+    // togliendo il filtro torna visibile
+    fireEvent.click(screen.getByTestId("recs-bracket-safe"));
+    expect(screen.getByTestId("hit-x2")).toBeInTheDocument();
   });
 
   it("standalone: tutta la larghezza, 4 colonne e hover per l'anteprima", async () => {

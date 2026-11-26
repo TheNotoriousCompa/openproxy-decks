@@ -20,6 +20,7 @@ const searchHitSchema = z.object({
   rarity: z.string().optional(),
   cmc: z.number().optional(),
   mana_cost: z.string().optional(),
+  game_changer: z.boolean().optional(),
   type_line: z.string().optional(),
   oracle_text: z.string().optional(),
   colors: z.array(z.string()).optional(),
@@ -64,6 +65,7 @@ export interface SearchHit {
   rarity?: string;
   cmc?: number;
   manaCost?: string;
+  gameChanger?: boolean;
   typeLine: string;
   oracleText?: string;
   colorIdentity: string[];
@@ -93,6 +95,7 @@ function toHit(raw: unknown): SearchHit | null {
     rarity: c.rarity,
     cmc: c.cmc,
     manaCost: c.mana_cost ?? face0?.mana_cost ?? undefined,
+    gameChanger: c.game_changer === true ? true : undefined,
     typeLine: c.type_line ?? face0?.type_line ?? "",
     oracleText: c.oracle_text ?? face0?.oracle_text,
     colorIdentity: identity,

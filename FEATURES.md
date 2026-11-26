@@ -42,6 +42,9 @@ con l'**anteprima grande nell'isola a destra** (artwork, tipo, testo oracolo,
 prezzo), come nel DeckBuilder. Click sull'arte = aggiunta rapida al Main;
 il **+** apre il menu **“Aggiungi a…”** con Main Deck, Sideboard, Commander,
 Maybeboard, Tokens, Extra Deck, Considering e Custom.
+Nei **Consigliati** c'è il filtro **“Solo carte dentro il bracket”**: usa il
+bracket calcolato del mazzo (B2/B3/B4) e nasconde le Game Changer (e, sotto il
+Bracket 4, il mass land denial), dichiarando quante carte nasconde.
 **Board Token ripulito**: Moxfield ci aggancia anche i token-copia come carte
 vere («The One Ring», «Glorious Gale»…): all'apertura del progetto le voci non
 token (layout token/emblem o set di soli token) vengono tolte dal mazzo — una
