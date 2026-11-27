@@ -63,6 +63,21 @@ html {
   border: 1px solid #262626;
 }
 
+/* Bordi direzionali: `border-b thin-border` applicherebbe un box completo
+   perché .thin-border viene dopo le utility Tailwind. */
+.thin-border-t {
+  border-top: 1px solid #262626;
+}
+.thin-border-b {
+  border-bottom: 1px solid #262626;
+}
+.thin-border-l {
+  border-left: 1px solid #262626;
+}
+.thin-border-r {
+  border-right: 1px solid #262626;
+}
+
 /* Spinner pixel-art 3x3: un punto orbita attorno al centro (steps duri, niente fade). */
 .px-spinner {
   display: grid;

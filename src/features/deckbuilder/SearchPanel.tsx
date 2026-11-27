@@ -84,7 +84,7 @@ export function SearchPanel({
         aria-selected={active}
         role="tab"
         data-testid={testid}
-        className={`border-b-2 pb-2 text-xs ${active ? "border-neutral-200 text-neutral-100" : "border-transparent text-neutral-400"}`}
+        className={`-mb-px border-b-2 pb-2 text-xs transition-colors ${active ? "border-neutral-200 text-neutral-100" : "border-transparent text-neutral-400 hover:text-neutral-200"}`}
       >
         {label}
       </button>
@@ -126,7 +126,7 @@ export function SearchPanel({
             🔍
           </button>
         </div>
-        <div className="mt-3 flex gap-4 border-b thin-border" role="tablist" aria-label="Pannello ricerca">
+        <div className="mt-4 flex gap-5 thin-border-b" role="tablist" aria-label="Pannello ricerca">
           {stab("adv", "Ricerca avanzata", "adv-open")}
           {stab("recs", "Consigliati")}
           {stab("syntax", "Sintassi")}
