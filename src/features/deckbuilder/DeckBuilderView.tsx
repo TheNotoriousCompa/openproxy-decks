@@ -422,11 +422,11 @@ export function DeckBuilderView(): JSX.Element {
       </div>
 
       {view === "text" ? (
-        <div className="min-h-0 flex-1 overflow-auto px-5 pb-8">
+        <div className="min-h-0 flex-1 overflow-auto px-5 pb-8" data-testid="db-cards-scroll">
           <DeckTextEditor />
         </div>
       ) : (
-      <div className="min-h-0 flex-1 overflow-auto px-5 pb-8">
+      <div className="min-h-0 flex-1 overflow-auto px-5 pb-8" data-testid="db-cards-scroll">
         {macroSections.map(({ zone, label, cards }) => {
           const copies = cards.reduce((n, c) => n + c.qty, 0);
           // main e side: sottosezioni per tipo (come prima); maybe/token restano piatti

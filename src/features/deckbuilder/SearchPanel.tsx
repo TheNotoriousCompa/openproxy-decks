@@ -132,7 +132,7 @@ export function SearchPanel({
           {stab("syntax", "Sintassi")}
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto p-4 pt-3">
+      <div className="min-h-0 flex-1 overflow-auto p-4 pt-3" data-testid="search-scroll">
         {activeTab === "recs" ? (
           <RecsTab large={standalone} onHover={onHover} />
         ) : activeTab === "syntax" ? (

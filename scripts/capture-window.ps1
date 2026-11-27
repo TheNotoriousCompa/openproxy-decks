@@ -1,5 +1,5 @@
 # Cattura la finestra "Proxxied" (o tutto lo schermo) in PNG per review automatica.
-param([string]$Title = "Proxxied", [string]$Out = "C:\Users\win7\AppData\Local\Temp\opencode\shots\shot.png")
+param([string]$Title = "OpenProxy & Decks", [string]$Out = "C:\Users\win7\AppData\Local\Temp\opencode\shots\shot.png")
 Add-Type -AssemblyName System.Drawing
 Add-Type -TypeDefinition @"
 using System;
@@ -18,7 +18,7 @@ if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory
 $h = [WinCap]::FindWindow($null, $Title)
 if ($h -eq [IntPtr]::Zero) {
   # fallback: cerca per processo
-  $p = Get-Process -Name "proxxied" -ErrorAction SilentlyContinue | Select-Object -First 1
+  $p = Get-Process -Name "openproxy_decks" -ErrorAction SilentlyContinue | Select-Object -First 1
   if ($p) { $h = $p.MainWindowHandle }
 }
 if ($h -eq [IntPtr]::Zero) { echo "NO-WINDOW"; exit 2 }
