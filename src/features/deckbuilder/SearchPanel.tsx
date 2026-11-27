@@ -95,7 +95,7 @@ export function SearchPanel({
     <aside
       className={
         standalone
-          ? "flex min-h-0 w-full flex-col"
+          ? "flex h-full min-h-0 w-full flex-col"
           : "flex min-h-0 w-80 shrink-0 flex-col border-l thin-border"
       }
       aria-label="Ricerca carte"

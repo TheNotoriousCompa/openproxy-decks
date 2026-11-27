@@ -236,7 +236,7 @@ export function DeckBuilderView(): JSX.Element {
   if (deck.length === 0) {
     return (
       <div
-        className="flex h-full flex-col items-center justify-center gap-3 bg-black p-6 text-center text-neutral-100"
+        className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 bg-black p-6 text-center text-neutral-100"
         aria-label="DeckBuilder"
         data-testid="deckbuilder-view"
       >
@@ -253,7 +253,7 @@ export function DeckBuilderView(): JSX.Element {
   }
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col bg-black text-neutral-100" aria-label="DeckBuilder" data-testid="deckbuilder-view">
+    <div className="relative flex min-h-0 flex-1 flex-col bg-black text-neutral-100" aria-label="DeckBuilder" data-testid="deckbuilder-view">
       {/* intestazione deck: nome, totali, pill comandante + EDHREC */}
       <div className="flex flex-wrap items-center gap-4 border-b thin-border px-5 py-4">
         <h2 className="text-xl font-bold">
@@ -343,7 +343,7 @@ export function DeckBuilderView(): JSX.Element {
 
       {mode === "search" ? (
         <div className="flex min-h-0 flex-1">
-          <div className="min-w-0 flex-1 overflow-hidden">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <SearchPanel standalone onHover={setSearchHit} />
           </div>
           <aside
